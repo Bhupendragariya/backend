@@ -1,7 +1,7 @@
-import { catchAsyncErrors } from "../middlewares/catchAsyncError";
-import ErrorHandler from "../middlewares/errorMiddlewares";
-import User from "../models/user.model";
-import { generateAccessAndRefreshTokens } from "../util/jwtToken";
+import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
+import ErrorHandler from "../middlewares/errorMiddlewares.js";
+import User from "../models/user.model.js";
+import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 
 
 

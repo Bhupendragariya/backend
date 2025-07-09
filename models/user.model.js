@@ -4,11 +4,6 @@ import jwt from "jsonwebtoken";
 
 const userSchema = new mongoose.Schema({
 
-  fullName: {
-    type: String,
-    required: true,
-    minLength: [3, "first name must contain at least 3 characters!"],
-  },
   email: {
     type: String,
     required: [true, "Email is required"],
@@ -20,7 +15,8 @@ const userSchema = new mongoose.Schema({
 
   password:{
       type: String,
-      required: [true, "Password is required"]
+      required: [true, "Password is required"],
+      select: false
     
   },
 
@@ -29,7 +25,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     
   },
-  
+
    status: {
     type: String,
     enum: ['Active', 'Inactive'],

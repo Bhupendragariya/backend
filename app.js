@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import { dbConnection } from "./config/dbconnection.js";
+import hrRouter from "./routers/hr.router.js"
 
 
 
@@ -22,9 +23,11 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(cookieParser());
 
-app.get('/', (req, res) => {
-  res.send('Hello from backend!');
-});
+
+
+
+app.use("/app/v1/hr",    hrRouter )
+
 
 
 
