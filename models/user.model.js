@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const userSchema = new mongoose.Schema({
-
-
 
   fullName: {
     type: String,
@@ -27,7 +27,6 @@ const userSchema = new mongoose.Schema({
 
   employeeId: {
     type: String,
-    required: true,
     unique: true,
 
     
@@ -100,10 +99,54 @@ const userSchema = new mongoose.Schema({
 
   otpExpires: {
     type:Date
-  }
+  },
+
+    refreshToken: {
+      type: String,
+    },
 
 
 }, { timestamps: true });
+
+
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
+  this.password = await bcrypt.hash(this.password, 7);
+  next();
+});
+
+userSchema.methods.comparePassword = async function (Password) {
+  return await bcrypt.compare(Password, this.password);
+};
+
+
+userSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    {
+      id: this._id,
+      email: this.email,
+      role: this.role,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+    }
+  );
+};
+
+userSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    {
+      id: this._id,
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  );
+};
+
 
 
 

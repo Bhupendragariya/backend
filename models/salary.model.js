@@ -22,3 +22,9 @@ const salarySchema = new mongoose.Schema({
      default: "Pending"
      },
 });
+
+
+
+const Salary = mongoose.model("Salary", salarySchema);
+
+export default Salary;
