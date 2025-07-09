@@ -2,13 +2,6 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
 
-
-
-  fullName: {
-    type: String,
-    required: true,
-    minLength: [3, "first name must contain at least 3 characters!"],
-  },
   email: {
     type: String,
     required: [true, "Email is required"],
@@ -24,29 +17,18 @@ const userSchema = new mongoose.Schema({
     
   },
 
-
-  employeeId: {
+    role: {
     type: String,
-    required: true,
-    unique: true,
-
-    
-  },
-
-   status: {
-    type: String,
-    enum: ['Active', 'Inactive'],
-    default: "Active",
-
-  },
-  role: {
-    type: String,
-    enum: ["admin", "employee", "hr"],
+    enum: ["admin", "hr", "employee"],
     default: "employee",
   },
-  photo: photoSchema,
-  bio: { type: String },
-  address: addressSchema,
+
+
+  refreshToken: { 
+    type: String, 
+    select: false
+   },
+
 
   otp: {
     type: String,
