@@ -63,6 +63,7 @@ const employeeSchema = new mongoose.Schema({
     types: mongoose.Schema.types.ObjectId,
     ref: 'Document'
   }],
+
   leaveDetails: [{
     types: mongoose.Schema.types.ObjectId,
     ref: 'Leave'
@@ -70,4 +71,7 @@ const employeeSchema = new mongoose.Schema({
 },
   { timestamps: true })
 
+
 export const Employee = mongoose.model('Employee', employeeSchema);
+
+export default Employee;
