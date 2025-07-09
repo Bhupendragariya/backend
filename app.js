@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from 'cookie-parser';
 import cors from "cors";
+import { dbConnection } from "./config/dbconnection.js";
 
 
 
@@ -32,7 +33,7 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 4000
 
-
+dbConnection()
 app.listen(PORT, () =>{
     console.log(`Server is listening on http://localhost:${PORT}`);
 })
