@@ -24,14 +24,12 @@ const userSchema = new mongoose.Schema({
     
   },
 
-
   employeeId: {
     type: String,
     unique: true,
-
     
   },
-
+  
    status: {
     type: String,
     enum: ['Active', 'Inactive'],
