@@ -1,10 +1,14 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-
 
 const userSchema = new mongoose.Schema({
 
+
+
+  fullName: {
+    type: String,
+    required: true,
+    minLength: [3, "first name must contain at least 3 characters!"],
+  },
   email: {
     type: String,
     required: [true, "Email is required"],
@@ -16,14 +20,16 @@ const userSchema = new mongoose.Schema({
 
   password:{
       type: String,
-      required: [true, "Password is required"],
-      select: false
+      required: [true, "Password is required"]
     
   },
 
+
   employeeId: {
     type: String,
+    required: true,
     unique: true,
+
     
   },
 
@@ -33,72 +39,22 @@ const userSchema = new mongoose.Schema({
     default: "Active",
 
   },
-
   role: {
     type: String,
-    enm: ["admin", "employee", "hr"],
+    enum: ["admin", "employee", "hr"],
     default: "employee",
-
   },
-  photo: {
+  photo: photoSchema,
+  bio: { type: String },
+  address: addressSchema,
+
+  otp: {
     type: String,
-   
   },
-
-  department:{
-    type:String,
-  
-  },
-
-  position:{
-    type:String,
-
-  },
-
-  phone:{
-    type: Number,
-
-  },
-
-  joinedOn:{
-    type:Date,
-    default: Date.now,
-
-  
-  },
-
-  fatherName:{
-    type:String,
-    
-  },
-
-  emergencyContact:{
-    name:String,
-    phone: Number
-  },
-
-  currentAddress:{
-    type:String,
-    
-  },
-
-  permanentAddress:{
-    type:String,
-  },
-
-
-   otp:{
-    type:String,
-   } ,
-
 
   otpExpires: {
     type:Date
-  },
-
-    refreshToken: {
-      type: String,
-    },
+  }
 
 
 }, { timestamps: true });
