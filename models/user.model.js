@@ -1,9 +1,31 @@
 import mongoose from "mongoose";
 
+const addressSchema = new mongoose.Schema({
+  currAddress: {
+    type: String,
+  },
+  permAddress: {
+    type: String,
+  },
+  city: {
+    type: String,
+  },
+  state: {
+    type: String,
+  },
+});
+
+const photoSchema = new mongoose.Schema({
+  url: {   //cloudinary url
+    type: String,
+  },
+  publicId: { //cloudinary public id 
+    type: String,
+  }
+})
+
+
 const userSchema = new mongoose.Schema({
-
-
-
   fullName: {
     type: String,
     required: true,
@@ -16,92 +38,26 @@ const userSchema = new mongoose.Schema({
     lowercase: true,
     match: [/.+@.+\..+/, "Please enter a valid email address"],
   },
-
-
-  password:{
-      type: String,
-      required: [true, "Password is required"]
-    
-  },
-
-
-  employeeId: {
+  password: {
     type: String,
-    required: true,
-    unique: true,
-
-    
+    required: [true, "Password is required"]
   },
-
-   status: {
-    type: String,
-    enum: ['Active', 'Inactive'],
-    default: "Active",
-
-  },
-
   role: {
     type: String,
-    enm: ["admin", "employee", "hr"],
+    enum: ["admin", "employee", "hr"],
     default: "employee",
-
   },
-  photo: {
+  photo: photoSchema,
+  bio: { type: String },
+  address: addressSchema,
+
+  otp: {
     type: String,
-   
   },
-
-  department:{
-    type:String,
-  
-  },
-
-  position:{
-    type:String,
-
-  },
-
-  phone:{
-    type: Number,
-
-  },
-
-  joinedOn:{
-    type:Date,
-    default: Date.now,
-
-  
-  },
-
-  fatherName:{
-    type:String,
-    
-  },
-
-  emergencyContact:{
-    name:String,
-    phone: Number
-  },
-
-  currentAddress:{
-    type:String,
-    
-  },
-
-  permanentAddress:{
-    type:String,
-  },
-
-
-   otp:{
-    type:String,
-   } ,
-
 
   otpExpires: {
-    type:Date
-  }
-
+    type: Date
+  },
 
 }, { timestamps: true });
 
