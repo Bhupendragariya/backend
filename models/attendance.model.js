@@ -1,25 +1,34 @@
 import mongoose from "mongoose";
 
 const attendanceSchema = new mongoose.Schema({
-  employee: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Employee",
+    ref: 'User',
     required: true,
   },
   date: {
     type: Date,
     required: true,
   },
-
-  punchIn: String,
-  punchOut: String,
-  workingHours: Number,
+  punchIn: {
+    type: String,
+    default: null,
+  },
+  punchOut: {
+    type: String,
+    default: null,
+  },
+  workingHours: {
+    type: Number,
+    default: 0,
+  },
   status: {
     type: String,
-    enum: ["Present", "Absent", "Late", "Work From Home"],
-    default: "Present",
+    enum: ['Present', 'Absent', 'Late', 'Work From Home'],
+    default: 'Present',
   },
 });
+
 
 
 const Attendance = mongoose.model("Attendance", attendanceSchema)

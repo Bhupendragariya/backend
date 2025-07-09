@@ -5,10 +5,12 @@ import User from "../models/user.model.js";
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
 
+
 export const addEmployee = catchAsyncErrors( async (req, res, next) => {
   const { fullName, email, department, position, phone, ...rest } = req.body;
 
 try {
+
       const existing = await User.findOne({ email });
       if (existing) return next( new ErrorHandler("User already exists", 402 ))
     

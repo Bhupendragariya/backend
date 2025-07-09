@@ -2,18 +2,40 @@ import mongoose from "mongoose";
 
 
 const eventSchema = new mongoose.Schema({
-  title: String,
-  type: { 
+   title: {
     type: String,
-     enum: ['Meeting', 'Interview', 'Training']
-     },
-  employee: {
-     type: mongoose.Schema.Types.ObjectId, 
-     ref: 'user'
-     },
-  date: Date,
-  time: String,
-  notes: String
+    required: [true, 'Event title is required'],
+    trim: true,
+  },
+  type: {
+    type: String,
+    enum: ['Meeting', 'Interview', 'Training'],
+    required: [true, 'Event type is required'],
+  },
+
+  isGlobal: {
+    type: Boolean,
+    default: false, 
+  },
+
+
+  date: {
+    type: Date,
+    required: [true, 'Event date is required'],
+  },
+  time: {
+    type: String,
+    required: [true, 'Event time is required'],
+  },
+  notes: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 

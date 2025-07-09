@@ -1,13 +1,28 @@
 const documentSchema = new mongoose.Schema({
-  employee: {
+  
+ user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Employee",
+    ref: 'User',
     required: true,
   },
-  
-  name: String,
-  fileUrl: String,
-  uploadedAt: { type: Date, default: Date.now },
+  name: {
+    type: String,
+    required: [true, 'Document name is required'],
+    trim: true,
+  },
+  fileUrl: {
+    type: String,
+    required: [true, 'File URL is required'],
+  },
+  type: {
+    type: String,
+    enum: ['PDF', 'Image', 'DOC', 'Other'],
+    default: 'Other',
+  },
+  uploadedAt: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const Document = mongoose.model("Document", documentSchema);

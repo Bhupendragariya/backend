@@ -1,22 +1,24 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
+import Leave from "../models/leave.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 
 
 
+
 export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
 
-  const incomingRefreshToken =
+  const token =
     req.cookies.refreshToken || req.body.refreshToken;
 
-  if (!incomingRefreshToken) {
+  if (!token) {
     return next(new ErrorHandler(401, "unauthorized request"));
   }
 
   try {
-    const decoded = jwt.verify(
-      incomingRefreshToken,
+    const decoded = JsonWebTokenError.verify(
+      token,
       process.env.REFRESH_TOKEN_SECRET
     );
     const user = await User.findById(decoded.id).select("+refreshToken");
@@ -57,26 +59,69 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
 
 
 
-
-
-
-
 export const getEmployeeDashboard = catchAsyncErrors( async( req, res, next) =>{
     try {
-        const employeeId = req.params.id;
+        const  userId= req.user._id;
 
-        const employee = await User.findById(employeeId);
+        const user = await User.findById(userId).select("-password -refreshToken -otp");
 
-        if (!employee) {
-            return next( new ErrorHandler("employ not found  ", 400))
+
+        const profile = await EmployeeProfile.findOne({user: userId})
+
+        if (!profile) {
+            return next( new ErrorHandler("employ profile  not found  ", 400))
         }
 
-
+        res.status(200).json({
+           message: "Employee Dashboard",
+            user,
+            profile 
+            })
         
     } catch (error) {
         return next(new ErrorHandler(error.message, 400));
     }
+});
+
+
+
+
+export const applyLeave =  catchAsyncErrors( async ( req, res, next) =>{
+  const {leaveType, startDate, endDate, reason, comment } = req.body;
+
+
+  try {
+
+    const  userId = req.user._id;
+
+      const newLeave = new Leave({
+      user: userId,
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+      comment
+    });
+
+    await newLeave.save()
+
+
+    res.status(201).json({
+       message: 'Leave request submitted successfully',
+        leave: newLeave,
+         
+      });
+    
+  } catch (error) {
+     return next(new ErrorHandler(error.message, 400));
+  }
 })
+
+
+
+
+
+
 
 
 

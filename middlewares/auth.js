@@ -1,7 +1,6 @@
-
 import jwt from 'jsonwebtoken';
-import { catchAsyncErrors } from './catchAsyncError';
-import ErrorHandler from './errorMiddlewares';
+import { catchAsyncErrors } from './catchAsyncError.js';
+import ErrorHandler from './errorMiddlewares.js';
 
 export const authenticate = catchAsyncErrors((req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
