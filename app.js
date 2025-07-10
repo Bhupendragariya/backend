@@ -4,6 +4,8 @@ import cookieParser from 'cookie-parser';
 import cors from "cors";
 import { dbConnection } from "./config/dbconnection.js";
 import hrRouter from "./routers/hr.router.js"
+import adminRouter from "./routers/admin.router.js"
+import employeeRouter from "./routers/employee.router.js"
 
 
 
@@ -26,7 +28,9 @@ app.use(cookieParser());
 
 
 
-app.use("/app/v1/hr",    hrRouter )
+app.use("/app/v1/hr",    hrRouter );
+app.use("/app/v1/admin",    adminRouter);
+app.use("/app/v1/employees",   employeeRouter);
 
 
 

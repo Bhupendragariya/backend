@@ -1,10 +1,9 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
+import Employee from "../models/employee.model.js";
 import Leave from "../models/leave.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
-
-
 
 
 export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
@@ -53,7 +52,7 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
       accessToken,
     });
   } catch (error) {
-    return next(new ErrorHandler(401, "invalid refresh token"));
+    return next(new ErrorHandler( "invalid refresh token", 401));
   }
 });
 
@@ -66,7 +65,7 @@ export const getEmployeeDashboard = catchAsyncErrors( async( req, res, next) =>{
         const user = await User.findById(userId).select("-password -refreshToken -otp");
 
 
-        const profile = await EmployeeProfile.findOne({user: userId})
+        const profile = await Employee.findOne({user: userId})
 
         if (!profile) {
             return next( new ErrorHandler("employ profile  not found  ", 400))

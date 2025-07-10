@@ -1,9 +1,9 @@
 
-import EmployeeProfile from "../models/EmployeeProfile.js";
 import { nanoid } from "nanoid";
 import User from "../models/user.model.js";
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
+import Employee from "../models/employee.model.js";
 
 
 export const addEmployee = catchAsyncErrors( async (req, res, next) => {
@@ -23,7 +23,7 @@ try {
         role: "employee",
       });
     
-      const profile = await EmployeeProfile.create({
+      const profile = await Employee.create({
         user: user._id,
         employeeId,
         fullName,

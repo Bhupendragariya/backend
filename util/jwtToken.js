@@ -23,7 +23,6 @@ export const generateAccessAndRefreshTokens = catchAsyncErrors( async(userId) =>
         return {
             accessToken,
             refreshToken,
-            role: user.role,
         }
         
     } catch (error) {
