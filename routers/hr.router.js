@@ -4,7 +4,7 @@ import { addEmployee } from "../controllers/hr.controller.js";
 
 const router = Router();
 
-router.post("/add-Employee",   addEmployee);
+router.post("/add-Employee",     addEmployee);
 
 
 

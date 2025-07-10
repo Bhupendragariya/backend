@@ -6,6 +6,7 @@ import { dbConnection } from "./config/dbconnection.js";
 import hrRouter from "./routers/hr.router.js"
 import adminRouter from "./routers/admin.router.js"
 import employeeRouter from "./routers/employee.router.js"
+import { errorMiddleware } from "./middlewares/errorMiddlewares.js";
 
 
 
@@ -39,6 +40,10 @@ app.use("/app/v1/employees",   employeeRouter);
 
 
 const PORT = process.env.PORT || 4000
+
+
+
+app.use(errorMiddleware);
 
 dbConnection()
 app.listen(PORT, () =>{
