@@ -1,29 +1,28 @@
+import mongoose from "mongoose";
+
 const documentSchema = new mongoose.Schema({
-  
- user: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    // required: true,
   },
-  name: {
+  name: { //aadhar,pan..
     type: String,
     required: [true, 'Document name is required'],
     trim: true,
   },
-  fileUrl: {
+  fileUrl: { //cloudinary file url
     type: String,
     required: [true, 'File URL is required'],
   },
-  type: {
+  publicId: { //cloudinary public id
     type: String,
-    enum: ['PDF', 'Image', 'DOC', 'Other'],
-    default: 'Other',
+    required: [true, 'Cloudinary public_id is required'],
   },
-  uploadedAt: {
-    type: Date,
-    default: Date.now,
+  type: { //jpg,pdf..
+    type: String,
   },
-});
+}, { timestamps: true });
 
 const Document = mongoose.model("Document", documentSchema);
 
