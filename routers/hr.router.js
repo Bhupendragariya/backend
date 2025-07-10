@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addEmployee, getLeavesWithEmployeeName, loginUser, reviewLeave } from "../controllers/hr.controller.js";
+import { addEmployee, getLeavesWithEmployeeName, loginUser, reviewEditRequest, reviewLeave } from "../controllers/hr.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 
 
@@ -13,8 +13,10 @@ router.post("/addEmployee", authenticate, authorize(["hr"]),   addEmployee);
 
 router.get("/leave-detailed", authenticate, authorize(["hr"]),   getLeavesWithEmployeeName);
 
-
 router.put("/leave-approveLeave/:leaveId", authenticate, authorize(["hr"]),   reviewLeave);
+
+router.put("/editRequest/:requestId", authenticate, authorize(["hr"]),   reviewEditRequest);
+
 
 
 

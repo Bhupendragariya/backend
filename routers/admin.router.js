@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addEmployee,  getLeavesWithEmployeeName, loginUser, registerUser, reviewLeave } from "../controllers/admin.controller.js";
+import { addEmployee,  getLeavesWithEmployeeName, loginUser, registerUser, reviewEditRequest, reviewLeave } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 
 
@@ -19,6 +19,8 @@ router.get("/leave-detailed", authenticate, authorize(["admin"]),   getLeavesWit
 
 
 router.put("/leave-approveLeave/:leaveId", authenticate, authorize(["admin"]),   reviewLeave);
+
+router.put("/editRequest/:requestId", authenticate, authorize(["admin"]),   reviewEditRequest);
 
 
 

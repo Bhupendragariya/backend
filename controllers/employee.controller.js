@@ -236,8 +236,6 @@ export const createEditRequest = catchAsyncErrors( async( req, res, next) =>{
 })
 
 
-
-
 export const editDocument = catchAsyncErrors(async (req, res, next) => {
   const { documentId } = req.params;
   const userId = req.user.id;
@@ -277,4 +275,38 @@ export const editDocument = catchAsyncErrors(async (req, res, next) => {
     document,
   });
 });
+
+
+
+export const getNotifications = catchAsyncErrors(async (req, res, next) => {
+  const notifications = await Notification.find({ user: req.user.id }).sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: notifications.length,
+    notifications,
+  });
+});
+
+
+
+export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
+  const { id } = req.params;
+
+  const notification = await Notification.findById(id);
+  if (!notification || notification.user.toString() !== req.user.id) {
+    return next(new ErrorHandler("Notification not found or unauthorized", 404));
+  }
+
+  notification.isRead = true;
+  await notification.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Marked as read",
+  });
+});
+
+
+
 

@@ -124,8 +124,6 @@ export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next)
 });
 
 
-
-
 export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
   const { leaveId } = req.params;
   const userId = req.user.id;
@@ -152,10 +150,63 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
   await leave.save();
 
+
+  await sendNotification({
+  userId: leave.user,
+  title: "Leave Request Update",
+  message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${leave.status}.`,
+  type: "Leave",
+  createdBy: req.user.id,
+});
+
+
   res.status(200).json({
     success: true,
     message: `Leave request ${status.toLowerCase()} successfully`,
     leave,
+  });
+
+
+
+
+});
+
+
+export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
+  const { requestId } = req.params;
+  const { status } = req.body;
+  const userId = req.user.id;
+
+  if (!['Approved', 'Rejected'].includes(status)) {
+    return next(new ErrorHandler('Invalid status value', 400));
+  }
+
+  const request = await DocumentEdit.findById(requestId);
+  if (!request) return next(new ErrorHandler('Edit request not found', 404));
+
+  if (request.status !== 'Pending') {
+    return next(new ErrorHandler('This request has already been reviewed', 400));
+  }
+
+  request.status = status;
+  request.reviewedBy = userId;
+  request.reviewedAt = new Date();
+
+  await request.save();
+
+
+   await sendNotification({
+    userId: DocumentEdit.id,
+    title: "Document Edit Request Update",
+    message: `Your edit request for document "${request.document.name}" has been ${status.toLowerCase()}.`,
+    type: "Document",
+    createdBy: reviewerId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: `Edit request ${status.toLowerCase()}`,
+    request,
   });
 });
 
