@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
 import Employee from "../models/employee.model.js";
+import Leave from "../models/leave.model.js";
 
 
 export const addEmployee = catchAsyncErrors( async (req, res, next) => {
@@ -35,14 +36,105 @@ try {
     
       res.status(201).json({
         message: "Employee created by HR",
-        employee: {
-          id: user._id,
-          email: user.email,
-          employeeId,
-          fullName: profile.fullName,
-        },
+        user: user._id,
+        profile
+        
       });
 } catch (error) {
     return next( new ErrorHandler(error.message, 500))
 }
+});
+
+
+
+
+export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next) => {
+ 
+  const leaves = await Leave.find()
+    .populate("user", "email role",) 
+    .lean();
+
+
+  const enrichedLeaves = await Promise.all(leaves.map(async (leave) => {
+    const employee = await Employee.findOne({ user: leave.user._id }).select("fullName");
+    return {
+      ...leave,
+      fullName: employee?.fullName || "N/A",
+    };
+  }));
+
+  res.status(200).json({
+    success: true,
+    count: enrichedLeaves.length,
+    leaves: enrichedLeaves,
+  });
+});
+
+
+
+
+export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
+  const { leaveId } = req.params;
+  const userId = req.user.id;
+  const { status } = req.body; 
+
+
+  const allowedStatuses = ['Approved', 'Rejected'];
+  if (!allowedStatuses.includes(status)) {
+    return next(new ErrorHandler(`Invalid status. Allowed values: ${allowedStatuses.join(', ')}`, 400));
+  }
+
+  const leave = await Leave.findById(leaveId);
+  if (!leave) {
+    return next(new ErrorHandler('Leave request not found', 404));
+  }
+
+  if (leave.status !== 'Pending') {
+    return next(new ErrorHandler('Leave request is already reviewed', 400));
+  }
+
+  leave.status = status;
+  leave.reviewedBy = userId;
+  leave.reviewedAt = new Date();
+
+  await leave.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Leave request ${status.toLowerCase()} successfully`,
+    leave,
+  });
+});
+
+
+
+
+
+
+export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
+  const { requestId } = req.params;
+  const { status } = req.body; 
+  const userId = req.user.id;
+
+  if (!['Approved', 'Rejected'].includes(status)) {
+    return next(new ErrorHandler('Invalid status value', 400));
+  }
+
+  const request = await DocumentEdit.findById(requestId);
+  if (!request) return next(new ErrorHandler('Edit request not found', 404));
+
+  if (request.status !== 'Pending') {
+    return next(new ErrorHandler('This request has already been reviewed', 400));
+  }
+
+  request.status = status;
+  request.reviewedBy = userId;
+  request.reviewedAt = new Date();
+  await request.save();
+
+  res.status(200).json({
+    success: true,
+    message: `Edit request ${status.toLowerCase()}`,
+    request,
+  });
 });

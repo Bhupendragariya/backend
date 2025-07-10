@@ -67,6 +67,12 @@ const employeeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Leave",
     },
+
+
+    salaryDetails:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Salary"
+    }
   },
   { timestamps: true }
 );
