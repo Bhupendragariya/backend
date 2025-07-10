@@ -45,7 +45,60 @@ try {
 }
 });
 
+export const loginUser = catchAsyncErrors(async (req, res, next) => {
+  const { email, password , role } = req.body;
 
+  try {
+    if (!email || !password || !role) {
+      return next(new ErrorHandler("please provide email and password", 400));
+    }
+
+    const user = await User.findOne({email}).select("+password")
+
+
+      if (!user) {
+      return next(new ErrorHandler(" Invalid user and password ", 400));
+    }
+
+    const isPasswordMatched = await user.comparePassword(password);
+
+      if (!isPasswordMatched) {
+      return next(new ErrorHandler(" Invalid user and password ", 400));
+    }
+
+
+      if (user.role !== role) {
+    return next(new ErrorHandler("Unauthorized role", 403));
+  }
+
+
+    const{ accessToken, refreshToken} = await generateAccessAndRefreshTokens(user._id);
+
+
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "Strict",
+    });
+
+
+    res.status(200).json({
+      message: "Login successfully",
+      accessToken,
+      user:{
+        id: user._id,
+      email: user.email,
+      role: user.role,
+      
+
+      }
+    })
+
+    
+  } catch (error) {
+    return next( new ErrorHandler(error.message,  400))
+  }
+}) ;
 
 
 export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next) => {
@@ -111,30 +164,3 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
 
-export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
-  const { requestId } = req.params;
-  const { status } = req.body; 
-  const userId = req.user.id;
-
-  if (!['Approved', 'Rejected'].includes(status)) {
-    return next(new ErrorHandler('Invalid status value', 400));
-  }
-
-  const request = await DocumentEdit.findById(requestId);
-  if (!request) return next(new ErrorHandler('Edit request not found', 404));
-
-  if (request.status !== 'Pending') {
-    return next(new ErrorHandler('This request has already been reviewed', 400));
-  }
-
-  request.status = status;
-  request.reviewedBy = userId;
-  request.reviewedAt = new Date();
-  await request.save();
-
-  res.status(200).json({
-    success: true,
-    message: `Edit request ${status.toLowerCase()}`,
-    request,
-  });
-});

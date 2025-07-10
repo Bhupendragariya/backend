@@ -1,10 +1,20 @@
 import { Router } from "express";
-import { addEmployee } from "../controllers/hr.controller.js";
+import { addEmployee, getLeavesWithEmployeeName, loginUser, reviewLeave } from "../controllers/hr.controller.js";
+import { authenticate, authorize } from "../middlewares/auth.js";
 
 
 const router = Router();
 
-router.post("/add-Employee",     addEmployee);
+
+
+router.post("/loginUser",   loginUser);
+
+router.post("/addEmployee", authenticate, authorize(["hr"]),   addEmployee);
+
+router.get("/leave-detailed", authenticate, authorize(["hr"]),   getLeavesWithEmployeeName);
+
+
+router.put("/leave-approveLeave/:leaveId", authenticate, authorize(["hr"]),   reviewLeave);
 
 
 

@@ -207,31 +207,4 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
 
-export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
-  const { requestId } = req.params;
-  const { status } = req.body; 
-  const userId = req.user.id;
-
-  if (!['Approved', 'Rejected'].includes(status)) {
-    return next(new ErrorHandler('Invalid status value', 400));
-  }
-
-  const request = await DocumentEdit.findById(requestId);
-  if (!request) return next(new ErrorHandler('Edit request not found', 404));
-
-  if (request.status !== 'Pending') {
-    return next(new ErrorHandler('This request has already been reviewed', 400));
-  }
-
-  request.status = status;
-  request.reviewedBy = userId;
-  request.reviewedAt = new Date();
-  await request.save();
-
-  res.status(200).json({
-    success: true,
-    message: `Edit request ${status.toLowerCase()}`,
-    request,
-  });
-});
 
