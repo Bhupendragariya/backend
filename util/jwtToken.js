@@ -1,32 +1,31 @@
-import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
+
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
 import User from "../models/user.model.js";
 
-
-
-
-export const generateAccessAndRefreshTokens = catchAsyncErrors( async(userId) =>{
+export const generateAccessAndRefreshTokens = 
+  async (userId) => {
     try {
-        const user = await User.findById(userId);
+      const user = await User.findById(userId);
 
-        if (!user) {
-         return next(new ErrorHandler("User not found", 404)) 
-        }
-
-        const accessToken = user.generateAccessToken();
-        const refreshToken = user.generateRefreshToken();
-
-        user.refreshToken = refreshToken;
-        await user.save({validateBeforeSave: false})
+      if (!user) {
+        throw new ErrorHandler("User not found", 404);
+      }
 
 
-        return {
-            accessToken,
-            refreshToken,
-        }
-        
+      const accessToken = user.generateAccessToken();
+      const refreshToken = user.generateRefreshToken();
+
+      user.refreshToken = refreshToken;
+      await user.save({ validateBeforeSave: false });
+
+      return {
+        accessToken,
+        refreshToken,
+      };
     } catch (error) {
-        return next( ErrorHandler(error.message || "Something went wrong while generating tokens", 500));
-
+      throw new ErrorHandler(
+        error.message || "Something went wrong while generating tokens",
+        500
+      );
     }
-});
+  };

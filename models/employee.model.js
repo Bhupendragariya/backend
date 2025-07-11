@@ -58,15 +58,21 @@ const employeeSchema = new mongoose.Schema(
     permanentAddress: {
       type: String,
     },
-    documents: {
+    documents: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Document",
-    },
+    }],
 
     leaveDetails: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Leave",
     },
+
+
+    salaryDetails: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Salary"
+    }
   },
   { timestamps: true }
 );
