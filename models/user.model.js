@@ -32,6 +32,12 @@ const userSchema = new mongoose.Schema({
    },
 
 
+   notificationEmail: {
+    type: String,
+    default: "",
+  },
+
+
   otp: {
     type: String,
   },

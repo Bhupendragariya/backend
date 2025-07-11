@@ -1,9 +1,11 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
+import BankAccount from "../models/banckAccoun.model.js";
 import Document from "../models/document.model.js";
 import DocumentEdit from "../models/documentEdit.model.js";
 import Employee from "../models/employee.model.js";
 import Leave from "../models/leave.model.js";
+import Resignation from "../models/resignation.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 
@@ -187,8 +189,6 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-
-
 export const createEditRequest = catchAsyncErrors( async( req, res, next) =>{
 
   const { documentId, reason } = req.body;
@@ -276,7 +276,7 @@ export const editDocument = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
+//notifaction  messsagess like red unread 
 
 export const getNotifications = catchAsyncErrors(async (req, res, next) => {
   const notifications = await Notification.find({ user: req.user.id }).sort({ createdAt: -1 });
@@ -288,6 +288,18 @@ export const getNotifications = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
+  const notifications = await Notification.find({
+    user: req.user.id,
+    read: false,
+  }).sort({ createdAt: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: notifications.length,
+    notifications,
+  });
+});
 
 
 export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
@@ -306,6 +318,152 @@ export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) =>
     message: "Marked as read",
   });
 });
+
+
+
+
+export const changePassword = catchAsyncErrors(async (req, res, next) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  const userId = req.user.id; 
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    return next(new ErrorHandler("All fields are required", 400));
+  }
+
+  if (newPassword !== confirmPassword) {
+    return next(new ErrorHandler("Passwords do not match", 400));
+  }
+
+  const user = await User.findById(userId).select("+password");
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  const isPasswordMatched = await user.comparePassword(currentPassword);
+  if (!isPasswordMatched) {
+    return next(new ErrorHandler("Incorrect current password", 401));
+  }
+
+  user.password = newPassword;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated successfully",
+  });
+});
+
+
+
+
+export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) => {
+  const { bankName, accountNumber, ifscCode, upiId } = req.body;
+
+  if (!req.user || !req.user.id) {
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
+
+  if (!bankName || !accountNumber || !ifscCode) {
+    return next(new ErrorHandler("Please provide all required fields", 400));
+  }
+
+  const employee = await Employee.findOne({ user: req.user.id });
+
+  if (!employee) {
+    return next(new ErrorHandler("Employee record not found", 404));
+  }
+
+  if (employee.bankAccounts) {
+    const bankAccount = await BankAccount.findById(employee.bankAccounts);
+
+    if (bankAccount) {
+      bankAccount.bankName = bankName;
+      bankAccount.accountNumber = accountNumber;
+      bankAccount.ifscCode = ifscCode;
+      bankAccount.upiId = upiId || null;
+
+      await bankAccount.save();
+
+      return res.status(200).json({
+        message: "Bank account updated successfully",
+        bankAccount,
+      });
+    }
+  }
+
+  const newBankAccount = new BankAccount({
+    bankName,
+    accountNumber,
+    ifscCode,
+    upiId: upiId || null,
+  });
+
+  await newBankAccount.save();
+
+ 
+  employee.bankAccounts = newBankAccount._id;
+  await employee.save();
+
+  res.status(201).json({
+    message: "Bank account added successfully",
+    bankAccount: newBankAccount,
+  });
+});
+
+
+
+export const submitResignation = catchAsyncErrors(async (req, res, next) => {
+  const { reason, note, proposedLastWorkingDate } = req.body;
+
+  if (!req.user || !req.user.id) {
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
+
+  if (!reason || !note || !proposedLastWorkingDate) {
+    return next(new ErrorHandler("Please provide all required fields", 400));
+  }
+
+  const proposedDate = new Date(proposedLastWorkingDate);
+  if (isNaN(proposedDate.getTime())) {
+    return next(new ErrorHandler("Invalid date format", 400));
+  }
+
+
+  const today = new Date();
+  const diffTime = proposedDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 30) {
+    return next(new ErrorHandler("Minimum 30 days notice period required", 400));
+  }
+
+
+  const existingResignation = await Resignation.findOne({ user: req.user.id, status: "pending" });
+  if (existingResignation) {
+    return next(new ErrorHandler("You already have a pending resignation request", 400));
+  }
+
+  const resignation = new Resignation({
+    user: req.user.id,
+    reason,
+    note,
+    proposedLastWorkingDate: proposedDate,
+  });
+
+  await resignation.save();
+
+  res.status(201).json({
+    success: true,
+    message: "Resignation submitted successfully",
+    resignation,
+  });
+});
+
+
+
+
+
 
 
 

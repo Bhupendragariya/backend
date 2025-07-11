@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { applyLeave, createEditRequest, editDocument, employeeLogin, getEmployeeDashboard, getNotifications, markNotificationAsRead } from "../controllers/employee.controller.js";
+import { addOrUpdateBankAccount, applyLeave, changePassword, createEditRequest, editDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation } from "../controllers/employee.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 
 
@@ -8,6 +8,8 @@ const router = Router();
 
 
 router.post("/employeeLogin",    employeeLogin);
+
+router.put("/changePassword", authenticate, authorize(["employee"]), changePassword);
 
 router.get("/getdashbord", authenticate, authorize(["employee"]),  getEmployeeDashboard);
 
@@ -19,9 +21,13 @@ router.put("/document/:documentId",   authenticate, authorize(["employee"]),   e
 
 router.get("/notifications", authenticate, authorize(["employee"]), getNotifications);
 
-router.put("notifications/:id/read", authenticate, authorize(["employee"]), markNotificationAsRead);
+router.put("/notifications/:id/read", authenticate, authorize(["employee"]), markNotificationAsRead);
 
+router.get("/notifications/unread", authenticate, authorize(["employee"]), getUnreadNotifications);
 
+router.put("/update-bankAccount", authenticate, authorize(["employee"]), addOrUpdateBankAccount);
+
+router.post("Submit-Resignation", authenticate, authorize(["employee"]), submitResignation);
 
 
 

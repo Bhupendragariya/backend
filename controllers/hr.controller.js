@@ -152,7 +152,7 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
   await sendNotification({
-  userId: leave.user,
+  userId: leave.user.id,
   title: "Leave Request Update",
   message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${leave.status}.`,
   type: "Leave",
@@ -170,6 +170,7 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
 });
+
 
 
 export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
@@ -196,7 +197,7 @@ export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
 
 
    await sendNotification({
-    userId: DocumentEdit.id,
+    userId: DocumentEdit.user.id,
     title: "Document Edit Request Update",
     message: `Your edit request for document "${request.document.name}" has been ${status.toLowerCase()}.`,
     type: "Document",
