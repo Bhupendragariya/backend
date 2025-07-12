@@ -17,8 +17,6 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ["Leave", "Salary", "General", "Welcome", "System", "Edit"],
-    default: "General",
   },
   isRead: {
     type: Boolean,
@@ -32,7 +30,7 @@ const notificationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-});
+},{timestamps:true});
 
 const Notification = mongoose.model("Notification", notificationSchema);
 export default Notification;

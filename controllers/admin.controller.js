@@ -211,7 +211,6 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
 
-
 //document
 export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
@@ -234,10 +233,21 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   document.publicId = requestedChanges.publicId;
   document.fileMimeType = requestedChanges.fileMimeType;
   document.status = 'approved';
-  document.reasonForRequest = undefined;
-  document.requestedChanges = undefined;
+
 
   await document.save();
+
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+for (const recipient of hrAndAdmins) {
+  await sendNotification({
+    userId: recipient.id,
+    title: "document edit request status",
+    message: `${document.user.name} requested  ${document.status}.`,
+    type: "document",
+    createdBy: req.user.id,
+  });
+}
 
   res.status(200).json({
     success: true,
@@ -269,6 +279,8 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   await Employee.findByIdAndUpdate(document.user, {
     $pull: { documents: docId }
   });
+
+
 
   res.status(200).json({
     success: true,

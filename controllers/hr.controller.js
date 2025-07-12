@@ -36,6 +36,15 @@ try {
         phone,
         ...rest,
       });
+
+
+      await sendNotification({
+  userId: user.id,
+  title: "add a employee",
+  message: `welcome to ${profile.fullName}`,
+  type: "welcome",
+  createdBy: req.user.id, 
+});
     
       res.status(201).json({
         message: "Employee created by HR",
@@ -205,6 +214,19 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
 
   await document.save();
 
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+
+  for (const recipient of hrAndAdmins) {
+    await sendNotification({
+      userId: recipient.id,
+      title: "document edit request status",
+      message: `${document.user.name} requested  ${document.status}.`,
+      type: "document",
+      createdBy: req.user.id,
+    });
+  }
+
   res.status(200).json({
     success: true,
     message: "Document update approved",
@@ -237,6 +259,9 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   await Employee.findByIdAndUpdate(document.user, {
     $pull: { documents: docId }
   });
+
+
+  
 
   res.status(200).json({
     success: true,

@@ -8,6 +8,7 @@ import Resignation from "../models/resignation.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 import cloudinary from "../config/cloudinary.js";
+import { sendNotification } from "../util/notification.js";
 
 
 
@@ -128,6 +129,18 @@ export const applyLeave = catchAsyncErrors(async (req, res, next) => {
 
     await newLeave.save();
 
+      const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+    for (const recipient of hrAndAdmins) {
+      await sendNotification({
+        userId: recipient._id,
+        title: "New Leave Request",
+        message: `${req.user.name} requested leave from ${start.toDateString()} to ${end.toDateString()}.`,
+        type: "Leave",
+        createdBy: req.user.id,
+      });
+    }
+
     res.status(201).json({
       message: "Leave request submitted successfully",
       leave: newLeave,
@@ -192,11 +205,14 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-
-
 //notifaction  messsagess like red unread 
 
 export const getNotifications = catchAsyncErrors(async (req, res, next) => {
+
+    if (!req.user || !req.user.id) {
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
+
   const notifications = await Notification.find({ user: req.user.id }).sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -207,6 +223,11 @@ export const getNotifications = catchAsyncErrors(async (req, res, next) => {
 });
 
 export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
+
+    if (!req.user || !req.user.id) {
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
+
   const notifications = await Notification.find({
     user: req.user.id,
     read: false,
@@ -222,6 +243,11 @@ export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) =>
 
 export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
+
+ if (!req.user || !req.user.id) {
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
+
 
   const notification = await Notification.findById(id);
   if (!notification || notification.user.toString() !== req.user.id) {
@@ -322,6 +348,8 @@ export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) =>
   employee.bankAccounts = newBankAccount._id;
   await employee.save();
 
+  
+
   res.status(201).json({
     message: "Bank account added successfully",
     bankAccount: newBankAccount,
@@ -370,6 +398,18 @@ export const submitResignation = catchAsyncErrors(async (req, res, next) => {
 
   await resignation.save();
 
+const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+     for (const recipient of hrAndAdmins) {
+      await sendNotification({
+        userId: recipient._id,
+        title: "New Resignation Request",
+        message: `${req.user.name} requested Resignation ${proposedDate.toDateString()}.`,
+        type: "Resignation",
+        createdBy: req.user.id,
+      });
+    }
+
   res.status(201).json({
     success: true,
     message: "Resignation submitted successfully",
@@ -380,7 +420,7 @@ export const submitResignation = catchAsyncErrors(async (req, res, next) => {
 
 
 export const addDocument = catchAsyncErrors(async (req, res, next) => {
-  // req.file =>{fieldname,originalname,encoding,minetype,path,size,filename}
+  
   const loggedInUserId = req.user.id
   console.log(loggedInUserId, req.user.role);
 
@@ -423,6 +463,19 @@ export const addDocument = catchAsyncErrors(async (req, res, next) => {
   await Employee.findByIdAndUpdate(empId, {
     $push: { documents: document._id }
   })
+
+
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+for (const recipient of hrAndAdmins) {
+  await sendNotification({
+    userId: recipient._id,
+    title: "add new document",
+    message: `${document.user.name} add new document.`,
+    type: "document",
+    createdBy: req.user.id,
+  });
+}
 
   res.status(201).json({
     success: true,
@@ -504,12 +557,27 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
 
   await document.save();
 
+
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+for (const recipient of hrAndAdmins) {
+  await sendNotification({
+    userId: recipient._id,
+    title: "update Document",
+    message: `${document.user.name} update document.`,
+    type: "document",
+    createdBy: req.user.id,
+  });
+}
+
   res.status(201).json({
     success: true,
     message: "Document updated successfully",
     document
   })
 })
+
+
 
 
 ///document
