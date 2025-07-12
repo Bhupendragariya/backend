@@ -16,7 +16,6 @@ router.get("/getdashbord", authenticate, authorize(["employee"]),  getEmployeeDa
 
 router.post("/createLeave", authenticate, authorize(["employee"]),  applyLeave);
 
-
 router.get("/notifications", authenticate, authorize(["employee"]), getNotifications);
 
 router.put("/notifications/:id/read", authenticate, authorize(["employee"]), markNotificationAsRead);
@@ -32,8 +31,7 @@ router.post("/addDocument/:empId", authenticate, authorize(["employee"]), upload
 
 router.put("/updateDocument/:empId/:docId", authenticate, authorize(["employee"]), upload.single('empDocument'), updateDocument);
 
-router.delete("/deletDocument/:empId/:docId", authenticate, authorize(["employee"]), deleteDocument);
-
+router.delete("/deleteDocument/:empId/:docId", authenticate, authorize(["employee"]), deleteDocument);
 
 
 
