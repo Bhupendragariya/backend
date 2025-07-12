@@ -26,6 +26,7 @@ const documentSchema = new mongoose.Schema({
     enum: ['approved', 'pending-update', 'pending-delete'],
     default: 'approved',
   },
+  
   reasonForRequest: { //need for emp to update/delete
     type: String,
     trim: true,

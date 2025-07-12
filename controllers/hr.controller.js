@@ -5,6 +5,8 @@ import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
 import Employee from "../models/employee.model.js";
 import Leave from "../models/leave.model.js";
+import cloudinary from "../config/cloudinary.js";
+
 
 
 export const addEmployee = catchAsyncErrors( async (req, res, next) => {
@@ -173,46 +175,73 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
 
-export const reviewEditRequest = catchAsyncErrors(async (req, res, next) => {
-  const { requestId } = req.params;
-  const { status } = req.body;
-  const userId = req.user.id;
 
-  if (!['Approved', 'Rejected'].includes(status)) {
-    return next(new ErrorHandler('Invalid status value', 400));
+
+
+export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
+  const { docId } = req.params;
+
+  const document = await Document.findById(docId);
+  if (!document || document.status !== 'pending-update') {
+    return next(new ErrorHandler("No pending update request found", 404));
   }
 
-  const request = await DocumentEdit.findById(requestId);
-  if (!request) return next(new ErrorHandler('Edit request not found', 404));
-
-  if (request.status !== 'Pending') {
-    return next(new ErrorHandler('This request has already been reviewed', 400));
+  // Delete old Cloudinary file
+  if (document.publicId) {
+    await cloudinary.uploader.destroy(document.publicId);
   }
 
-  request.status = status;
-  request.reviewedBy = userId;
-  request.reviewedAt = new Date();
+  // Apply requested changes
+  const requestedChanges = document.requestedChanges;
 
-  await request.save();
+  document.type = requestedChanges.type;
+  document.fileUrl = requestedChanges.fileUrl;
+  document.publicId = requestedChanges.publicId;
+  document.fileMimeType = requestedChanges.fileMimeType;
+  document.status = 'approved';
+  document.reasonForRequest = undefined;
+  document.requestedChanges = undefined;
 
-
-   await sendNotification({
-    userId: DocumentEdit.user.id,
-    title: "Document Edit Request Update",
-    message: `Your edit request for document "${request.document.name}" has been ${status.toLowerCase()}.`,
-    type: "Document",
-    createdBy: reviewerId,
-  });
+  await document.save();
 
   res.status(200).json({
     success: true,
-    message: `Edit request ${status.toLowerCase()}`,
-    request,
+    message: "Document update approved",
+    document
   });
 });
 
 
 
+
+
+//document
+export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
+  const { docId } = req.params;
+
+  const document = await Document.findById(docId);
+  if (!document || document.status !== 'pending-delete') {
+    return next(new ErrorHandler("No pending delete request found", 404));
+  }
+
+  // Delete doc from Cloudinary
+  if (document.publicId) {
+    await cloudinary.uploader.destroy(document.publicId);
+  }
+
+  // Remove doc from doc data
+  await Document.findByIdAndDelete(docId);
+
+  // Remove from employee data
+  await Employee.findByIdAndUpdate(document.user, {
+    $pull: { documents: docId }
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Document delete approved"
+  });
+});
 
 
 

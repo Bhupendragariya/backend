@@ -1,32 +1,49 @@
 import { Router } from "express";
-import { addEmployee,  getLeavesWithEmployeeName, loginUser, registerUser, reviewEditRequest, reviewLeave } from "../controllers/admin.controller.js";
+import {
+  addEmployee,
+  approveDeleteRequest,
+  approveUpdateRequest,
+  getLeavesWithEmployeeName,
+  loginUser,
+  registerUser,
+  reviewLeave,
+} from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
-
-
-
-
 
 const router = Router();
 
-router.post("/registerUser",   registerUser);
+router.post("/registerUser", registerUser);
 
+router.post("/loginUser", loginUser);
 
-router.post("/loginUser",   loginUser);
+router.post("/addEmployee", authenticate, authorize(["admin"]), addEmployee);
 
-router.post("/addEmployee", authenticate, authorize(["admin"]),   addEmployee);
+router.get(
+  "/leave-detailed",
+  authenticate,
+  authorize(["admin"]),
+  getLeavesWithEmployeeName
+);
 
-router.get("/leave-detailed", authenticate, authorize(["admin"]),   getLeavesWithEmployeeName);
+router.put(
+  "/leave-approveLeave/:leaveId",
+  authenticate,
+  authorize(["admin"]),
+  reviewLeave
+);
 
+router.put(
+  "/approveUpdate/:docId",
+  authenticate,
+  authorize(["admin"]),
+  approveUpdateRequest
+);
 
-router.put("/leave-approveLeave/:leaveId", authenticate, authorize(["admin"]),   reviewLeave);
+router.delete(
+  "/approveDelete/:docId",
+  authenticate,
+  authorize(["hr", "admin"]),
+  approveDeleteRequest
+);
 
-router.put("/editRequest/:requestId", authenticate, authorize(["admin"]),   reviewEditRequest);
-
-
-
-
-
-
-
-
-export default router
+export default router;
