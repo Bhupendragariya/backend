@@ -5,7 +5,6 @@ import {
   approveUpdateRequest,
   getLeavesWithEmployeeName,
   loginUser,
-  reviewEditRequest,
   reviewLeave,
 } from "../controllers/hr.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
@@ -30,12 +29,6 @@ router.put(
   reviewLeave
 );
 
-router.put(
-  "/editRequest/:requestId",
-  authenticate,
-  authorize(["hr"]),
-  reviewEditRequest
-);
 
 router.put(
   "/approveUpdate/:docId",

@@ -6,8 +6,9 @@ import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 import { nanoid } from "nanoid";
 import { sendNotification } from "../util/notification.js";
-import DocumentEdit from "../models/documentEdit.model.js";
 import cloudinary from "../config/cloudinary.js";
+import Document from "../models/document.model.js";
+
 
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;

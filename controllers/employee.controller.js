@@ -2,7 +2,6 @@ import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
 import BankAccount from "../models/banckAccoun.model.js";
 import Document from "../models/document.model.js";
-import DocumentEdit from "../models/documentEdit.model.js";
 import Employee from "../models/employee.model.js";
 import Leave from "../models/leave.model.js";
 import Resignation from "../models/resignation.model.js";
@@ -193,92 +192,7 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-export const createEditRequest = catchAsyncErrors( async( req, res, next) =>{
 
-  const { documentId, reason } = req.body;
-
-  const userId = req.user.id;
-
-  try {
-
-    const document = await Document.findById(documentId);
-    if (!document) return next(new ErrorHandler('Document not found', 404));
-
-
-
-    if (document.user.toString() !== userId) {
-    return next(new ErrorHandler('You do not have permission to edit this document', 403));
-  }
-
-  const existingRequest = await DocumentEdit.findOne({
-    document: documentId,
-    requestedBy: userId,
-    status: 'Pending'
-  });
-
-   if (existingRequest) {
-    return next(new ErrorHandler('You already have a pending edit request for this document', 400));
-  }
-
-   const editRequest = await DocumentEdit.create({
-    document: documentId,
-    requestedBy: userId,
-    reason,
-  });
-
-
-  res.status(201).json({
-    success: true,
-    message: 'Edit request submitted successfully',
-    editRequest,
-  })
-
-    
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
-  }
-})
-
-
-export const editDocument = catchAsyncErrors(async (req, res, next) => {
-  const { documentId } = req.params;
-  const userId = req.user.id;
-  const { name, fileUrl, type } = req.body;
-
-
-  const document = await Document.findById(documentId);
-  if (!document) return next(new ErrorHandler('Document not found', 404));
-
-
-  if (document.user.toString() !== userId) {
-    return next(new ErrorHandler('You do not have permission to edit this document', 403));
-  }
-
-
-  const approvedRequest = await DocumentEdit.findOne({
-    document: documentId,
-    requestedBy: userId,
-    status: 'Approved'
-  });
-  if (!approvedRequest) {
-    return next(new ErrorHandler('No approved edit request found for this document', 403));
-  }
-
-
-  if (name) document.name = name;
-  if (fileUrl) document.fileUrl = fileUrl;
-  if (type) document.type = type;
-
-  await document.save();
-
-  await approvedRequest.remove();
-
-  res.status(200).json({
-    success: true,
-    message: 'Document updated successfully',
-    document,
-  });
-});
 
 //notifaction  messsagess like red unread 
 

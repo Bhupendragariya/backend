@@ -6,7 +6,6 @@ import { dbConnection } from "./config/dbconnection.js";
 import hrRouter from "./routers/hr.router.js"
 import adminRouter from "./routers/admin.router.js"
 import employeeRouter from "./routers/employee.router.js"
-import documentRouter from "./routers/document.router.js";
 import { errorMiddleware } from "./middlewares/errorMiddlewares.js";
 
 
@@ -33,8 +32,6 @@ app.use("/api/v1/hr", hrRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/employees", employeeRouter);
 
-//common routes
-app.use("/api/v1/document", documentRouter);
 
 
 
