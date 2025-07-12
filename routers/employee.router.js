@@ -28,11 +28,11 @@ router.put("/update-bankAccount", authenticate, authorize(["employee"]), addOrUp
 router.post("Submit-Resignation", authenticate, authorize(["employee"]), submitResignation);
 
 
-router.post("/add/:empId", authenticate, authorize(["employee"]), upload.single('empDocument'), addDocument);
+router.post("/addDocument/:empId", authenticate, authorize(["employee"]), upload.single('empDocument'), addDocument);
 
-router.put("/update/:empId/:docId", authenticate, authorize(["employee"]), upload.single('empDocument'), updateDocument);
+router.put("/updateDocument/:empId/:docId", authenticate, authorize(["employee"]), upload.single('empDocument'), updateDocument);
 
-router.delete("/delete/:empId/:docId", authenticate, authorize(["employee"]), deleteDocument);
+router.delete("/deletDocument/:empId/:docId", authenticate, authorize(["employee"]), deleteDocument);
 
 
 

@@ -33,14 +33,14 @@ router.put(
 );
 
 router.put(
-  "/approveUpdate/:docId",
+  "/approveUpdatedocument/:docId",
   authenticate,
   authorize(["admin"]),
   approveUpdateRequest
 );
 
 router.delete(
-  "/approveDelete/:docId",
+  "/approveDeletedocument/:docId",
   authenticate,
   authorize(["hr", "admin"]),
   approveDeleteRequest
