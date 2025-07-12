@@ -1,31 +1,45 @@
-import mongoose from 'mongoose';
-
+import mongoose from "mongoose";
 
 const documentSchema = new mongoose.Schema({
- user: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
   },
-  name: {
+  type: { // aadhar, pan, marksheet, etc.
     type: String,
-    required: [true, 'Document name is required'],
+    required: [true, 'Document type is required'],
     trim: true,
   },
-  fileUrl: {
+  fileUrl: { // Cloudinary file URL
     type: String,
     required: [true, 'File URL is required'],
   },
-  type: {
+  publicId: { // Cloudinary public ID
     type: String,
-    enum: ['PDF', 'Image', 'DOC', 'Other'],
-    default: 'Other',
+    required: [true, 'Cloudinary public_id is required'],
   },
-  uploadedAt: {
-    type: Date,
-    default: Date.now,
+  fileMimeType: { // image/jpeg, application/pdf
+    type: String,
   },
-});
+  status: {
+    type: String,
+    enum: ['approved', 'pending-update', 'pending-delete'],
+    default: 'approved',
+  },
+  reasonForRequest: { //need for emp to update/delete
+    type: String,
+    trim: true,
+  },
+  requestedChanges: { //need for emp to update
+    type: {
+      type: String,
+      trim: true,
+    },
+    fileUrl: String,
+    publicId: String,
+    fileMimeType: String,
+  }
+}, { timestamps: true });
 
 const Document = mongoose.model("Document", documentSchema);
 

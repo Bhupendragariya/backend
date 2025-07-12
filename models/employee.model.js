@@ -58,7 +58,6 @@ const employeeSchema = new mongoose.Schema(
     permanentAddress: {
       type: String,
     },
-
     documents: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Document",
