@@ -214,19 +214,13 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
 
   await document.save();
 
-  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
-
-
-  for (const recipient of hrAndAdmins) {
-    await sendNotification({
-      userId: recipient.id,
-      title: "document edit request status",
-      message: `${document.user.name} requested  ${document.status}.`,
-      type: "document",
-      createdBy: req.user.id,
-    });
-  }
-
+await sendNotification({
+  userId: document.user.id, 
+  title: "Your Document Request",
+  message: `Your document request was submitted successfully with status: ${document.status}.`,
+  type: "document",
+  createdBy: req.user.id,
+});
   res.status(200).json({
     success: true,
     message: "Document update approved",
@@ -268,6 +262,22 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
     message: "Document delete approved"
   });
 });
+
+
+
+export const getInboxMessages = async (req, res) => {
+  try {
+    const inbox = await Message.find({ recipient: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate('sender', 'name email');
+
+    res.status(200).json({ messages: inbox });
+  } catch (error) {
+    console.error("Inbox error:", error);
+    res.status(500).json({ error: "Failed to load inbox." });
+  }
+};
+
 
 
 

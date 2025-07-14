@@ -3,6 +3,7 @@ import {
   addEmployee,
   approveDeleteRequest,
   approveUpdateRequest,
+  getInboxMessages,
   getLeavesWithEmployeeName,
   loginUser,
   registerUser,
@@ -42,8 +43,13 @@ router.put(
 router.delete(
   "/approveDeleteDocument/:docId",
   authenticate,
-  authorize(["hr", "admin"]),
+  authorize(["admin"]),
   approveDeleteRequest
 );
+
+router.get('/messages/inbox', authenticate,
+  authorize([ "admin"]), getInboxMessages);
+
+
 
 export default router;

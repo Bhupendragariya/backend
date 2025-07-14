@@ -3,11 +3,13 @@ import {
   addEmployee,
   approveDeleteRequest,
   approveUpdateRequest,
+  getInboxMessages,
   getLeavesWithEmployeeName,
   loginUser,
   reviewLeave,
 } from "../controllers/hr.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
+
 
 const router = Router();
 
@@ -43,5 +45,9 @@ router.delete(
   authorize(["hr"]),
   approveDeleteRequest
 );
+
+
+router.get('/messages/inbox', authenticate,
+  authorize([ "hr"]), getInboxMessages);
 
 export default router;

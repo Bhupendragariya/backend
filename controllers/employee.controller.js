@@ -9,6 +9,9 @@ import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 import cloudinary from "../config/cloudinary.js";
 import { sendNotification } from "../util/notification.js";
+import sendEmail from '../util/sendEmail.js';
+import fs from 'fs';
+import Message from "../models/message.model.js";
 
 
 
@@ -348,7 +351,18 @@ export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) =>
   employee.bankAccounts = newBankAccount._id;
   await employee.save();
 
-  
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+for (const recipient of hrAndAdmins) {
+  await sendNotification({
+    userId: recipient.id,
+    title: "New Bank Account Added",
+    message: `${req.user.fullName} has added a new bank account.`,
+    type: "bank",
+    createdBy: req.user.id,
+  });
+}
+
 
   res.status(201).json({
     message: "Bank account added successfully",
@@ -535,6 +549,8 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
       fileMimeType: mimetype
     }
     await document.save();
+    
+    
     return res.status(201).json({
       success: true,
       message: "Update request submitted and pending HR/Admin approval",
@@ -558,13 +574,13 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   await document.save();
 
 
-  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
 for (const recipient of hrAndAdmins) {
   await sendNotification({
-    userId: recipient._id,
-    title: "update Document",
-    message: `${document.user.name} update document.`,
+    userId: recipient.id,
+    title: "Document Edit Request Received",
+    message: `${document.user.name} has submitted a document request. Status: ${document.status}.`,
     type: "document",
     createdBy: req.user.id,
   });
@@ -635,4 +651,108 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
     document
   })
 })
+
+
+
+
+///send a email
+export const sendMessageToUser =  catchAsyncErrors(async (req, res) => {
+  try {
+    const { recipientId, subject, message, type } = req.body;
+    const file = req.file;
+    const senderId = req.user.id;
+
+    if (!recipientId || !subject || !message) {
+      return res.status(400).json({ error: "Recipient, subject, and message are required." });
+    }
+
+    const recipient = await User.findById(recipientId);
+    if (!recipient) {
+      return res.status(404).json({ error: "Recipient not found." });
+    }
+
+
+    await new Notification({
+      user: recipient.id,
+      title: subject,
+      message,
+      type,
+      createdBy: senderId,
+    }).save();
+
+
+    await new Message({
+      sender: senderId,
+      recipient: recipient.id,
+      subject,
+      body: message,
+      attachment: file ? {
+        filename: file.originalname,
+        path: file.path,
+      } : undefined,
+    }).save();
+
+
+    const emailHtml = `
+      <p>Hello ${recipient.name || "User"},</p>
+      <p><strong>${subject}</strong></p>
+      <p>${message}</p>
+    `;
+
+    const attachments = file ? [{
+      filename: file.originalname,
+      path: file.path,
+    }] : [];
+
+    await sendEmail(recipient.email, subject, emailHtml, attachments);
+
+
+    if (file) {
+      fs.unlink(file.path, err => {
+        if (err) console.error("File cleanup error:", err);
+      });
+    }
+
+    res.status(200).json({ message: "Message sent successfully." });
+  } catch (error) {
+    console.error("Send message error:", error);
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
+
+
+
+export const getSentMessages = catchAsyncErrors(async (req, res) => {
+  try {
+    const sent = await Message.find({ sender: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate('recipient', 'name email');
+
+    res.status(200).json({ messages: sent });
+  } catch (error) {
+    console.error("Sent error:", error);
+    res.status(500).json({ error: "Failed to load sent messages." });
+  }
+}) ;
+
+
+export const markMessageAsRead = catchAsyncErrors(async (req, res) => {
+  const messageId = req.params.id;
+  const message = await Message.findById(messageId);
+
+  if (!message) return res.status(404).json({ error: "Message not found" });
+
+  if (message.recipient.toString() !== req.user.id) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
+  message.read = true;
+  await message.save();
+
+  res.status(200).json({ message: "Message marked as read" });
+});
+
+
+
 
