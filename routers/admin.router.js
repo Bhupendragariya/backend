@@ -10,7 +10,16 @@ import {
   reviewLeave,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
-import { getAllFeedbackMessages, getUnreadFeedbackCount, markFeedbackAsRead } from "../controllers/hr.controller.js";
+import {
+  createLeaveByAdmin,
+  createMeeting,
+  getAllEmployeePerformance,
+  getAllFeedbackMessages,
+  getUnreadFeedbackCount,
+  getUserMeetings,
+  markFeedbackAsRead,
+  saveEvaluation,
+} from "../controllers/hr.controller.js";
 
 const router = Router();
 
@@ -48,18 +57,52 @@ router.delete(
   approveDeleteRequest
 );
 
-router.get('/messages/inbox', authenticate,
-  authorize([ "admin"]), getInboxMessages);
+router.get(
+  "/messages/inbox",
+  authenticate,
+  authorize(["admin"]),
+  getInboxMessages
+);
 
-  
-  router.get("/feedbackRead", authenticate,
-    authorize([ "admin"]), markFeedbackAsRead);
+router.get(
+  "/feedbackRead",
+  authenticate,
+  authorize(["admin"]),
+  markFeedbackAsRead
+);
 
+router.get(
+  "/UnreadFeedbackCount",
+  authenticate,
+  authorize(["admin"]),
+  getUnreadFeedbackCount
+);
 
-  router.get("/UnreadFeedbackCount", authenticate,
-    authorize([ "admin"]), getUnreadFeedbackCount);
+router.get(
+  "/AllFeedbackMessages",
+  authenticate,
+  authorize(["admin"]),
+  getAllFeedbackMessages
+);
 
+router.get("/allMeetings", authenticate, authorize(["admin"]), getUserMeetings);
 
-  router.get("/AllFeedbackMessages", authenticate,
-    authorize([ "admin"]), getAllFeedbackMessages);
+router.get(
+  "/getEmployeePerformance",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeePerformance
+);
+
+router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);
+
+router.post(
+  "/admin-create",
+  authenticate,
+  authorize(["admin"]),
+  createLeaveByAdmin
+);
+
+router.post("/Evaluation", authenticate, authorize(["admin"]), saveEvaluation);
+
 export default router;
