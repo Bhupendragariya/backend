@@ -12,6 +12,7 @@ import { sendNotification } from "../util/notification.js";
 import sendEmail from '../util/sendEmail.js';
 import fs from 'fs';
 import Message from "../models/message.model.js";
+import Feedback from "../models/feedback.model.js";
 
 
 
@@ -64,6 +65,8 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+
+
 export const getEmployeeDashboard = catchAsyncErrors(async (req, res, next) => {
 
 
@@ -92,6 +95,8 @@ export const getEmployeeDashboard = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
 
 export const applyLeave = catchAsyncErrors(async (req, res, next) => {
   const { leaveType, startDate, endDate, reason, comment } = req.body;
@@ -152,6 +157,8 @@ export const applyLeave = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
 
 export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
@@ -225,6 +232,8 @@ export const getNotifications = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+
+
 export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
 
     if (!req.user || !req.user.id) {
@@ -244,26 +253,31 @@ export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) =>
 });
 
 
+
 export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
- if (!req.user || !req.user.id) {
-    return next(new ErrorHandler("User not authenticated", 401));
-  }
-
-
-  const notification = await Notification.findById(id);
-  if (!notification || notification.user.toString() !== req.user.id) {
-    return next(new ErrorHandler("Notification not found or unauthorized", 404));
-  }
-
-  notification.isRead = true;
-  await notification.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Marked as read",
-  });
+try {
+   if (!req.user || !req.user.id) {
+      return next(new ErrorHandler("User not authenticated", 401));
+    }
+  
+  
+    const notification = await Notification.findById(id);
+    if (!notification || notification.user.toString() !== req.user.id) {
+      return next(new ErrorHandler("Notification not found or unauthorized", 404));
+    }
+  
+    notification.isRead = true;
+    await notification.save();
+  
+    res.status(200).json({
+      success: true,
+      message: "Marked as read",
+    });
+} catch (error) {
+   return next(new ErrorHandler(error.message, 400));
+}
 });
 
 
@@ -369,6 +383,7 @@ for (const recipient of hrAndAdmins) {
     bankAccount: newBankAccount,
   });
 });
+
 
 
 
@@ -752,6 +767,50 @@ export const markMessageAsRead = catchAsyncErrors(async (req, res) => {
 
   res.status(200).json({ message: "Message marked as read" });
 });
+
+
+
+
+//feedback 
+
+export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
+  const { type, title, description } = req.body;
+
+  try {
+    if (!req.user || !req.user.id) {
+      return next(new ErrorHandler("Unauthorized", 401));
+    }
+  
+    if (!type || !title) {
+      return next(new ErrorHandler("Type and Title are required", 400));
+    }
+  
+    let attachment = null;
+    if (req.file) {
+      attachment = {
+        url: req.file.path,        // cloudinary file URL
+        public_id: req.file.filename // Cloudinary public ID
+      };
+    }
+  
+    const feedback = await Feedback.create({
+      user: req.user.id,
+      type,
+      title,
+      description,
+      attachment,
+    });
+  
+    res.status(201).json({
+      success: true,
+      message: "Feedback submitted successfully.",
+      feedback,
+    });
+  } catch (error) {
+     return next(new ErrorHandler(error.message, 400));
+  }
+});
+
 
 
 

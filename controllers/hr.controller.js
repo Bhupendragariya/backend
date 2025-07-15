@@ -7,6 +7,7 @@ import Employee from "../models/employee.model.js";
 import Leave from "../models/leave.model.js";
 import cloudinary from "../config/cloudinary.js";
 import Document from "../models/document.model.js";
+import Feedback from "../models/feedback.model.js";
 
 
 
@@ -255,8 +256,6 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   });
 
 
-  
-
   res.status(200).json({
     success: true,
     message: "Document delete approved"
@@ -265,7 +264,7 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
 
 
 
-export const getInboxMessages = async (req, res) => {
+export const getInboxMessages = catchAsyncErrors( async (req, res) => {
   try {
     const inbox = await Message.find({ recipient: req.user.id })
       .sort({ createdAt: -1 })
@@ -273,10 +272,57 @@ export const getInboxMessages = async (req, res) => {
 
     res.status(200).json({ messages: inbox });
   } catch (error) {
-    console.error("Inbox error:", error);
-    res.status(500).json({ error: "Failed to load inbox." });
+    return next(new ErrorHandler(error.message, 400));
   }
-};
+});
+
+
+
+export const markFeedbackAsRead = catchAsyncErrors( async (req, res, next) => {
+  try {
+    const feedback = await Feedback.findById(req.params.id);
+    if (!feedback) return res.status(404).json({ error: 'Feedback not found' });
+
+    feedback.status = 'read';
+    await feedback.save();
+
+    res.status(200).json({ success: true, message: 'Marked as read' });
+  } catch (err) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
+
+
+
+
+export const getUnreadFeedbackCount = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const unreadCount = await Feedback.countDocuments({ status: 'unread' });
+    res.status(200).json({
+      success: true,
+      unread: unreadCount,
+    });
+  } catch (err) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
+
+export const getAllFeedbackMessages =catchAsyncErrors(async (req, res, next) => {
+  try {
+    const feedbacks = await Feedback.find()
+      .populate('user', 'name email') 
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      feedbacks,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
 
 
 

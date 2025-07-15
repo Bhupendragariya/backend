@@ -10,6 +10,7 @@ import {
   reviewLeave,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
+import { getAllFeedbackMessages, getUnreadFeedbackCount, markFeedbackAsRead } from "../controllers/hr.controller.js";
 
 const router = Router();
 
@@ -50,6 +51,15 @@ router.delete(
 router.get('/messages/inbox', authenticate,
   authorize([ "admin"]), getInboxMessages);
 
+  
+  router.get("/feedbackRead", authenticate,
+    authorize([ "admin"]), markFeedbackAsRead);
 
 
+  router.get("/UnreadFeedbackCount", authenticate,
+    authorize([ "admin"]), getUnreadFeedbackCount);
+
+
+  router.get("/AllFeedbackMessages", authenticate,
+    authorize([ "admin"]), getAllFeedbackMessages);
 export default router;

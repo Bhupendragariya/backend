@@ -27,11 +27,11 @@ const documentSchema = new mongoose.Schema({
     default: 'approved',
   },
   
-  reasonForRequest: { //need for emp to update/delete
+  reasonForRequest: { 
     type: String,
     trim: true,
   },
-  requestedChanges: { //need for emp to update
+  requestedChanges: { 
     type: {
       type: String,
       trim: true,
