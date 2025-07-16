@@ -2,16 +2,19 @@ import mongoose from "mongoose";
 
 
 const salarySchema = new mongoose.Schema({
-   user: {
+  user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
   },
-  
-  salaryMonth: {
+
+  // salaryMonth: {
+  //   type: String,
+  //   required: [true, 'Salary month is required'],
+  //   trim: true,
+  // },
+  salaryCycle: { //montly/bi-weekly
     type: String,
-    required: [true, 'Salary month is required'],
-    trim: true,
   },
 
   basic: {

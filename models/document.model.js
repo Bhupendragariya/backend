@@ -8,6 +8,7 @@ const documentSchema = new mongoose.Schema({
   type: { // aadhar, pan, marksheet, etc.
     type: String,
     required: [true, 'Document type is required'],
+    enum: ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert', 'empResume', 'empOfferLetter', 'empOtherDoc'],
     trim: true,
   },
   fileUrl: { // Cloudinary file URL

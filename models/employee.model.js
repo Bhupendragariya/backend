@@ -40,12 +40,14 @@ const employeeSchema = new mongoose.Schema(
       enum: ["male", "female", "other", "prefer not to say"],
     },
 
-    department: {
-      type: String,
+    department: {    //hr,design,it/development,marketing,sales
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
     },
 
-    position: {
-      type: String,
+    position: {      //web developer,hr manager,data analyst,ui/ux designer,graphic designer,intern
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Position",
     },
 
     joinedOn: {
@@ -63,19 +65,19 @@ const employeeSchema = new mongoose.Schema(
       ref: "Document",
     }],
 
-    leaveDetails:[{
+    leaveDetails: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Leave",
     }],
 
 
-    salaryDetails:[{
+    salaryDetails: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Salary"
     }],
 
 
-    bankAccounts:{
+    bankDetails: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BankAccount"
     },

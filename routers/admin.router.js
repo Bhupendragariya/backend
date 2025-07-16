@@ -1,8 +1,12 @@
 import { Router } from "express";
 import {
+  addDepartment,
   addEmployee,
+  addPosition,
   approveDeleteRequest,
   approveUpdateRequest,
+  deleteDepartment,
+  deletePosition,
   getInboxMessages,
   getLeavesWithEmployeeName,
   loginUser,
@@ -10,16 +14,7 @@ import {
   reviewLeave,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
-import {
-  createLeaveByAdmin,
-  createMeeting,
-  getAllEmployeePerformance,
-  getAllFeedbackMessages,
-  getUnreadFeedbackCount,
-  getUserMeetings,
-  markFeedbackAsRead,
-  saveEvaluation,
-} from "../controllers/hr.controller.js";
+import upload from "../middlewares/multer.js";
 
 const router = Router();
 
@@ -27,7 +22,14 @@ router.post("/registerUser", registerUser);
 
 router.post("/loginUser", loginUser);
 
-router.post("/addEmployee", authenticate, authorize(["admin"]), addEmployee);
+//empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
+router.post("/addEmployee",
+  authenticate,
+  authorize(["admin"]),
+  upload.fields([
+    { name: 'empPhoto' }, { name: 'empIdProof' }, { name: 'emp10PassCert' }, { name: 'emp12PassCert' }, { name: 'empGradCert' }, { name: 'empExpCert' }
+  ]),
+  addEmployee);
 
 router.get(
   "/leave-detailed",
@@ -58,51 +60,39 @@ router.delete(
 );
 
 router.get(
-  "/messages/inbox",
+  '/messages/inbox',
   authenticate,
   authorize(["admin"]),
   getInboxMessages
 );
 
-router.get(
-  "/feedbackRead",
+router.post(
+  "/addDepartment",
   authenticate,
   authorize(["admin"]),
-  markFeedbackAsRead
-);
+  addDepartment
+)
 
-router.get(
-  "/UnreadFeedbackCount",
+router.delete(
+  "/deleteDepartment/:deptId",
   authenticate,
   authorize(["admin"]),
-  getUnreadFeedbackCount
-);
-
-router.get(
-  "/AllFeedbackMessages",
-  authenticate,
-  authorize(["admin"]),
-  getAllFeedbackMessages
-);
-
-router.get("/allMeetings", authenticate, authorize(["admin"]), getUserMeetings);
-
-router.get(
-  "/getEmployeePerformance",
-  authenticate,
-  authorize(["admin"]),
-  getAllEmployeePerformance
-);
-
-router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);
+  deleteDepartment
+)
 
 router.post(
-  "/admin-create",
+  "/addPosition",
   authenticate,
   authorize(["admin"]),
-  createLeaveByAdmin
-);
+  addPosition
+)
 
-router.post("/Evaluation", authenticate, authorize(["admin"]), saveEvaluation);
+router.delete(
+  "/deletePosition/:posId",
+  authenticate,
+  authorize(["admin"]),
+  deletePosition
+)
+
 
 export default router;
