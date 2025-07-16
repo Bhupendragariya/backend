@@ -548,10 +548,6 @@ export const saveEvaluation = async (req, res, next) => {
   }
 };
 
-    console.error("Inbox error:", error);
-    res.status(500).json({ error: "Failed to load inbox." });
-  }
-};
 
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {

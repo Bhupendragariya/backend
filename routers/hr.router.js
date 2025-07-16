@@ -82,7 +82,6 @@ router.get(
   getAllFeedbackMessages
 );
 
-
 router.post("/Meeting", authenticate, authorize(["hr"]), createMeeting);
 
 router.get("/allMeetings", authenticate, authorize(["hr"]), getUserMeetings);
@@ -94,12 +93,13 @@ router.post(
   createLeaveByAdmin
 );
 
+router.get(
+  "/getEmployeePerformance",
+  authenticate,
+  authorize(["hr"]),
+  getAllEmployeePerformance
+);
 
-
- router.get("/getEmployeePerformance", authenticate,
-    authorize([ "hr"]), getAllEmployeePerformance);
-
-    router.post("/Evaluation", authenticate,
-    authorize([ "hr"]), saveEvaluation )
+router.post("/Evaluation", authenticate, authorize(["hr"]), saveEvaluation);
 
 export default router;
