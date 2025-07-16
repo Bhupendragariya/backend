@@ -1,6 +1,6 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
-import BankAccount from "../models/banckAccoun.model.js";
+import BankAccount from "../models/banckAccount.model.js";
 import Document from "../models/document.model.js";
 import Employee from "../models/employee.model.js";
 import Leave from "../models/leave.model.js";
@@ -47,8 +47,8 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
       user.role === "Admin"
         ? "adminToken"
         : user.role === "HR"
-        ? "hrToken"
-        : "employeeToken";
+          ? "hrToken"
+          : "employeeToken";
 
     res.cookie(cookieName, newRefreshToken, {
       httpOnly: true,
@@ -74,17 +74,17 @@ export const getEmployeeDashboard = catchAsyncErrors(async (req, res, next) => {
       "-password -refreshToken -otp"
     );
 
-  
 
-      const employee = await Employee.findOne({ user: userId });
-    
+
+    const employee = await Employee.findOne({ user: userId });
+
 
     if (!employee) {
       return next(new ErrorHandler("employ profile  not found  ", 400));
     }
-    
+
     res.status(200).json({
-      message: "Employee Dashboard", 
+      message: "Employee Dashboard",
       user,
       employee,
     });
@@ -99,27 +99,27 @@ export const applyLeave = catchAsyncErrors(async (req, res, next) => {
   try {
 
 
-      if (!req.user || !req.user.id) {
-    return next(new ErrorHandler("User not authenticated", 401));
-  }
+    if (!req.user || !req.user.id) {
+      return next(new ErrorHandler("User not authenticated", 401));
+    }
 
-     if (!leaveType || !startDate || !endDate || !reason) {
-    return next(
-      new ErrorHandler("Please provide all required fields", 400)
-    );
-  }
+    if (!leaveType || !startDate || !endDate || !reason) {
+      return next(
+        new ErrorHandler("Please provide all required fields", 400)
+      );
+    }
 
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
 
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-    return next(new ErrorHandler("Invalid date format", 400));
-  }
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return next(new ErrorHandler("Invalid date format", 400));
+    }
 
-  if (start > end) {
-    return next(new ErrorHandler("Start date cannot be after end date", 400));
-  }
+    if (start > end) {
+      return next(new ErrorHandler("Start date cannot be after end date", 400));
+    }
 
     const newLeave = new Leave({
       user: req.user.id,
@@ -132,7 +132,7 @@ export const applyLeave = catchAsyncErrors(async (req, res, next) => {
 
     await newLeave.save();
 
-      const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+    const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
     for (const recipient of hrAndAdmins) {
       await sendNotification({
@@ -199,7 +199,7 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json({
       message: "Login successfully",
       accessToken,
-      
+
       employee,
     });
   } catch (error) {
@@ -212,7 +212,7 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
 
 export const getNotifications = catchAsyncErrors(async (req, res, next) => {
 
-    if (!req.user || !req.user.id) {
+  if (!req.user || !req.user.id) {
     return next(new ErrorHandler("User not authenticated", 401));
   }
 
@@ -227,7 +227,7 @@ export const getNotifications = catchAsyncErrors(async (req, res, next) => {
 
 export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
 
-    if (!req.user || !req.user.id) {
+  if (!req.user || !req.user.id) {
     return next(new ErrorHandler("User not authenticated", 401));
   }
 
@@ -247,7 +247,7 @@ export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) =>
 export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
- if (!req.user || !req.user.id) {
+  if (!req.user || !req.user.id) {
     return next(new ErrorHandler("User not authenticated", 401));
   }
 
@@ -271,7 +271,7 @@ export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) =>
 export const changePassword = catchAsyncErrors(async (req, res, next) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
 
-  const userId = req.user.id; 
+  const userId = req.user.id;
 
   if (!currentPassword || !newPassword || !confirmPassword) {
     return next(new ErrorHandler("All fields are required", 400));
@@ -347,21 +347,21 @@ export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) =>
 
   await newBankAccount.save();
 
- 
+
   employee.bankAccounts = newBankAccount._id;
   await employee.save();
 
   const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
-for (const recipient of hrAndAdmins) {
-  await sendNotification({
-    userId: recipient.id,
-    title: "New Bank Account Added",
-    message: `${req.user.fullName} has added a new bank account.`,
-    type: "bank",
-    createdBy: req.user.id,
-  });
-}
+  for (const recipient of hrAndAdmins) {
+    await sendNotification({
+      userId: recipient.id,
+      title: "New Bank Account Added",
+      message: `${req.user.fullName} has added a new bank account.`,
+      type: "bank",
+      createdBy: req.user.id,
+    });
+  }
 
 
   res.status(201).json({
@@ -412,17 +412,17 @@ export const submitResignation = catchAsyncErrors(async (req, res, next) => {
 
   await resignation.save();
 
-const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
-     for (const recipient of hrAndAdmins) {
-      await sendNotification({
-        userId: recipient._id,
-        title: "New Resignation Request",
-        message: `${req.user.name} requested Resignation ${proposedDate.toDateString()}.`,
-        type: "Resignation",
-        createdBy: req.user.id,
-      });
-    }
+  for (const recipient of hrAndAdmins) {
+    await sendNotification({
+      userId: recipient._id,
+      title: "New Resignation Request",
+      message: `${req.user.name} requested Resignation ${proposedDate.toDateString()}.`,
+      type: "Resignation",
+      createdBy: req.user.id,
+    });
+  }
 
   res.status(201).json({
     success: true,
@@ -434,13 +434,12 @@ const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
 
 export const addDocument = catchAsyncErrors(async (req, res, next) => {
-  
   const loggedInUserId = req.user.id
   console.log(loggedInUserId, req.user.role);
 
-  const { empId } = req.params;
-  if (!empId) {
-    return next(new ErrorHandler("Employee ID is required", 400));
+  const { userId } = req.params;
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
   }
 
   if (!req.file) {
@@ -457,13 +456,23 @@ export const addDocument = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Please provide a document type", 400));
   }
 
+  const validTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert', 'empResume', 'empOfferLetter', 'empOtherDoc'];
+  if (!validTypes.includes(type)) {
+    return next(new ErrorHandler(`Invalid document type. Allowed types are: ${validTypes.join(', ')}`, 400));
+  }
+
   //if emp add doc to other emp
-  if (req.user.role === "employee" && empId !== loggedInUserId) {
+  if (req.user.role === "employee" && userId !== loggedInUserId) {
     return next(new ErrorHandler("You are not authorized to add document for this user", 403));
   }
 
+  const existingDoc = await Document.findOne({ user: userId, type });
+  if (existingDoc) {
+    return next(new ErrorHandler("Document of this type already exists. Please request an update instead.", 409));
+  }
+
   const document = await Document.create({
-    user: empId,
+    user: userId,
     type,
     fileUrl: path, // cloudinary file url
     publicId: filename, // cloudinary public id
@@ -474,22 +483,30 @@ export const addDocument = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Failed to upload document", 500));
   }
 
-  await Employee.findByIdAndUpdate(empId, {
-    $push: { documents: document._id }
-  })
+  const employee = await Employee.findOne({ user: userId })
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
+  }
+
+  employee.documents.push(document._id)
+  await employee.save()
+
+  // await Employee.findByIdAndUpdate(userId, {
+  //   $push: { documents: document._id }
+  // })
 
 
   const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
-for (const recipient of hrAndAdmins) {
-  await sendNotification({
-    userId: recipient._id,
-    title: "add new document",
-    message: `${document.user.name} add new document.`,
-    type: "document",
-    createdBy: req.user.id,
-  });
-}
+  for (const recipient of hrAndAdmins) {
+    await sendNotification({
+      userId: recipient._id,
+      title: "add new document",
+      message: `${document.user.name} add new document.`,
+      type: "document",
+      createdBy: req.user.id,
+    });
+  }
 
   res.status(201).json({
     success: true,
@@ -505,9 +522,9 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
   console.log(loggedInUserId, req.user.role);
 
-  const { empId, docId } = req.params;
-  if (!empId || !docId) {
-    return next(new ErrorHandler("Employee ID and Document ID both are required", 400));
+  const { userId, docId } = req.params;
+  if (!userId || !docId) {
+    return next(new ErrorHandler("User ID and Document ID both are required", 400));
   }
 
   if (!req.file) {
@@ -532,7 +549,7 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   //---when emp try to update doc---update status,reason and req field only----
   if (req.user.role === "employee") {
     //if emp update doc of other emp 
-    if (empId !== loggedInUserId) {
+    if (userId !== loggedInUserId) {
       return next(new ErrorHandler("You are not authorized to add document for this user", 403))
     }
 
@@ -549,8 +566,8 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
       fileMimeType: mimetype
     }
     await document.save();
-    
-    
+
+
     return res.status(201).json({
       success: true,
       message: "Update request submitted and pending HR/Admin approval",
@@ -574,17 +591,17 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   await document.save();
 
 
-const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
-for (const recipient of hrAndAdmins) {
-  await sendNotification({
-    userId: recipient.id,
-    title: "Document Edit Request Received",
-    message: `${document.user.name} has submitted a document request. Status: ${document.status}.`,
-    type: "document",
-    createdBy: req.user.id,
-  });
-}
+  for (const recipient of hrAndAdmins) {
+    await sendNotification({
+      userId: recipient.id,
+      title: "Document Edit Request Received",
+      message: `${document.user.name} has submitted a document request. Status: ${document.status}.`,
+      type: "document",
+      createdBy: req.user.id,
+    });
+  }
 
   res.status(201).json({
     success: true,
@@ -601,9 +618,9 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
   console.log(loggedInUserId, req.user.role);
 
-  const { empId, docId } = req.params;
-  if (!empId || !docId) {
-    return next(new ErrorHandler("Employee ID and Document ID both are required", 400));
+  const { userId, docId } = req.params;
+  if (!userId || !docId) {
+    return next(new ErrorHandler("User ID and Document ID both are required", 400));
   }
 
   const document = await Document.findById(docId);
@@ -614,7 +631,7 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
   //---when emp try to delete doc---update status and reason only----
   if (req.user.role === "employee") {
     //if emp delete doc of other emp
-    if (empId !== loggedInUserId) {
+    if (userId !== loggedInUserId) {
       return next(new ErrorHandler("You are not authorized to delete document for this user", 403))
     }
 
@@ -641,9 +658,17 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
 
   await document.deleteOne();
 
-  await Employee.findByIdAndUpdate(empId, {
-    $pull: { documents: docId }
-  });
+  const employee = await Employee.findOne({ user: userId })
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
+  }
+
+  employee.documents.pull(document._id)
+  await employee.save()
+
+  // await Employee.findByIdAndUpdate(empId, {
+  //   $pull: { documents: docId }
+  // });
 
   res.status(200).json({
     success: true,
@@ -656,7 +681,7 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
 
 
 ///send a email
-export const sendMessageToUser =  catchAsyncErrors(async (req, res) => {
+export const sendMessageToUser = catchAsyncErrors(async (req, res) => {
   try {
     const { recipientId, subject, message, type } = req.body;
     const file = req.file;
@@ -734,7 +759,7 @@ export const getSentMessages = catchAsyncErrors(async (req, res) => {
     console.error("Sent error:", error);
     res.status(500).json({ error: "Failed to load sent messages." });
   }
-}) ;
+});
 
 
 export const markMessageAsRead = catchAsyncErrors(async (req, res) => {

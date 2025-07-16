@@ -8,6 +8,10 @@ import { nanoid } from "nanoid";
 import { sendNotification } from "../util/notification.js";
 import cloudinary from "../config/cloudinary.js";
 import Document from "../models/document.model.js";
+import Salary from "../models/salary.model.js";
+import BankAccount from "../models/banckAccount.model.js";
+import Department from "../models/department.model.js";
+import Position from "../models/position.model.js";
 
 
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
@@ -93,50 +97,50 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-export const addEmployee = catchAsyncErrors(async (req, res, next) => {
-  const { fullName, email, department, position, phone, ...rest } = req.body;
+// export const addEmployee = catchAsyncErrors(async (req, res, next) => {
+//   const { fullName, email, department, position, phone, ...rest } = req.body;
 
-  try {
-    const existing = await User.findOne({ email });
-    if (existing) return next(new ErrorHandler("User already exists", 402));
+//   try {
+//     const existing = await User.findOne({ email });
+//     if (existing) return next(new ErrorHandler("User already exists", 402));
 
-    const password = "emp@123";
-    const employeeId = `EMP${nanoid(6).toUpperCase()}`;
+//     const password = "emp@123";
+//     const employeeId = `EMP${nanoid(6).toUpperCase()}`;
 
-    const user = await User.create({
-      email,
-      password,
-      role: "employee",
-    });
+//     const user = await User.create({
+//       email,
+//       password,
+//       role: "employee",
+//     });
 
-    const profile = await Employee.create({
-      user: user._id,
-      employeeId,
-      fullName,
-      department,
-      position,
-      phone,
-      ...rest,
-    });
+//     const profile = await Employee.create({
+//       user: user._id,
+//       employeeId,
+//       fullName,
+//       department,
+//       position,
+//       phone,
+//       ...rest,
+//     });
 
 
-      await sendNotification({
-      userId: user._id,
-      title: "Welcome to the Team!",
-      message: `Welcome aboard, ${fullName}! We're excited to have you join as a ${position}.`,
-      type: "Employee",
-      createdBy: req.user?.id || null, 
-    });
+//       await sendNotification({
+//       userId: user._id,
+//       title: "Welcome to the Team!",
+//       message: `Welcome aboard, ${fullName}! We're excited to have you join as a ${position}.`,
+//       type: "Employee",
+//       createdBy: req.user?.id || null, 
+//     });
 
-    res.status(201).json({
-      message: "Employee created by HR",
-      user: user._id,
-      profile,
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 500));
-  }
-});
+//     res.status(201).json({
+//       message: "Employee created by HR",
+//       user: user._id,
+//       profile,
+//     });
+//   } catch (error) {
+//     return next(new ErrorHandler(error.message, 500));
+//   }
+// });
 
 export const getLeavesWithEmployeeName = catchAsyncErrors(
   async (req, res, next) => {
@@ -195,9 +199,8 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
   await sendNotification({
     userId: leave.user.id,
     title: "Leave Request Update",
-    message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${
-      leave.status
-    }.`,
+    message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${leave.status
+      }.`,
     type: "Leave",
     createdBy: req.user.id,
   });
@@ -211,7 +214,7 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 
 
 
-//document
+//approve document update request
 export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
 
@@ -237,13 +240,13 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
 
   await document.save();
 
- await sendNotification({
-  userId: document.user.id, 
-  title: "Your Document Request",
-  message: `Your document request was submitted successfully with status: ${document.status}.`,
-  type: "document",
-  createdBy: req.user.id,
-});
+  await sendNotification({
+    userId: document.user.id,
+    title: "Your Document Request",
+    message: `Your document request was submitted successfully with status: ${document.status}.`,
+    type: "document",
+    createdBy: req.user.id,
+  });
 
   res.status(200).json({
     success: true,
@@ -252,9 +255,7 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
-
+//approve document delete request
 export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
 
@@ -276,15 +277,13 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
     $pull: { documents: docId }
   });
 
- 
+
 
   res.status(200).json({
     success: true,
     message: "Document delete approved"
   });
 });
-
-
 
 
 export const getInboxMessages = async (req, res) => {
@@ -299,3 +298,222 @@ export const getInboxMessages = async (req, res) => {
     res.status(500).json({ error: "Failed to load inbox." });
   }
 };
+
+export const addEmployee = catchAsyncErrors(async (req, res, next) => {
+  const {
+    fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
+    //bank details
+    bankName, accountNumber, ifscCode,
+    //salary details
+    basic, salaryCycle, allowances, deductions, netSalary
+  } = req.body
+
+  //bio and deductions are optional
+  if (
+    !fullName || !employeeId || !email || !contactNo || !emgContactName || !emgContactNo ||
+    !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
+    !bankName || !accountNumber || !ifscCode ||
+    !basic || !salaryCycle || !allowances || !netSalary
+  ) {
+    return next(new ErrorHandler("Please provide all required fields.", 400));
+  }
+
+  //chk existing user and employee
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new ErrorHandler("User already exists with this email", 400));
+  }
+
+  const existingEmployee = await Employee.findOne({ employeeId });
+  if (existingEmployee) {
+    return next(new ErrorHandler("Employee ID already exists", 400));
+  }
+
+  const existingDepartment = await Department.findOne({ name: department });
+  if (!existingDepartment) {
+    return next(new ErrorHandler("Department does not exist", 400));
+  }
+
+  const existingPosition = await Position.findOne({ name: position });
+  if (!existingPosition) {
+    return next(new ErrorHandler("Position does not exist", 400));
+  }
+
+  const user = await User.create({
+    email,
+    password: employeeId,
+    role: 'employee'
+  })
+
+  const salary = await Salary.create({
+    user: user._id,
+    salaryCycle,
+    basic,
+    allowances,
+    deductions,
+    netSalary,
+  })
+
+  const bankAccount = await BankAccount.create({
+    bankName,
+    accountNumber,
+    ifscCode,
+  })
+
+  //req.files={empPhoto:[{fieldname,originalname,encoding,mimetype,path(cloud),size,filename(cloud)}], empIdProof:[{}]}
+  //fields -> empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
+  // console.log(req.files);
+
+  const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
+
+  const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
+  if (missingDocs.length > 0) {
+    return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
+  }
+
+  const documents = []
+
+  for (const field in req.files) { //req.files obj
+    for (let file of req.files[field]) { //field arr
+      const { path, filename, mimetype } = file
+      if (!path || !filename || !mimetype) {
+        return next(new ErrorHandler("Invalid file upload", 400));
+      }
+
+      const document = await Document.create({
+        user: user._id,
+        type: field,
+        fileUrl: path,
+        publicId: filename,
+        fileMimeType: mimetype,
+      })
+      documents.push(document._id)
+    }
+  }
+
+  const employee = await Employee.create({
+    user: user._id,
+    employeeId,
+    fullName,
+    contactNo,
+    emergencyContact: {
+      name: emgContactName,
+      phone: emgContactNo
+    },
+    department: existingDepartment._id,
+    position: existingPosition._id,
+    currentAddress,
+    permanentAddress,
+    bio,
+    joinedOn,
+    documents,
+    salaryDetails: [salary._id],
+    bankDetails: bankAccount._id,
+  })
+
+  res.status(201).json({
+    success: true,
+    message: "Employee added successfully",
+    employee
+  })
+})
+
+export const addDepartment = catchAsyncErrors(async (req, res, next) => {
+  const loggedInUserId = req.user.id
+
+  const { name } = req.body;
+  if (!name) {
+    return next(new ErrorHandler("Department name is required", 400));
+  }
+
+  const existingDepartment = await Department.findOne({ name: { $regex: `^${name}$`, $options: "i" } });
+  if (existingDepartment) {
+    return next(new ErrorHandler("Department already exists", 400));
+  }
+
+  const department = await Department.create({
+    name,
+    createdBy: loggedInUserId
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Department added successfully",
+    department
+  });
+})
+
+export const deleteDepartment = catchAsyncErrors(async (req, res, next) => {
+  const { deptId } = req.params;
+  if (!deptId) {
+    return next(new ErrorHandler("Department ID is required", 400));
+  }
+
+  const department = await Department.findById(deptId);
+  if (!department) {
+    return next(new ErrorHandler("Department not found", 404));
+  }
+
+  // Remove department from employees and set to null
+  await Employee.updateMany(
+    { department: deptId },
+    { $set: { department: null } }
+  )
+
+  await Department.findByIdAndDelete(deptId);
+
+  res.status(200).json({
+    success: true,
+    message: "Department deleted successfully and all employees' departments set to null"
+  });
+})
+
+export const addPosition = catchAsyncErrors(async (req, res, next) => {
+  const loggedInUserId = req.user.id
+
+  const { name } = req.body;
+  if (!name) {
+    return next(new ErrorHandler("Position name is required", 400));
+  }
+
+  const existingPosition = await Position.findOne({ name: { $regex: `^${name}$`, $options: "i" } });
+  if (existingPosition) {
+    return next(new ErrorHandler("Position already exists", 400));
+  }
+
+  const position = await Position.create({
+    name,
+    createdBy: loggedInUserId
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Position added successfully",
+    position
+  });
+})
+
+export const deletePosition = catchAsyncErrors(async (req, res, next) => {
+  const { posId } = req.params;
+  if (!posId) {
+    return next(new ErrorHandler("Position ID is required", 400));
+  }
+
+  const position = await Position.findById(posId);
+  if (!position) {
+    return next(new ErrorHandler("Position not found", 404));
+  }
+
+  // Remove position from employees and set to null
+  await Employee.updateMany(
+    { position: posId },
+    { $set: { position: null } }
+  )
+
+  await Position.findByIdAndDelete(posId);
+
+  res.status(200).json({
+    success: true,
+    message: "Position deleted successfully and all employees' positions set to null"
+  });
+})
