@@ -5,11 +5,18 @@ import {
   addPosition,
   approveDeleteRequest,
   approveUpdateRequest,
+  createLeaveByAdmin,
+  createMeeting,
   deleteDepartment,
   deletePosition,
+  getAllEmployeePerformance,
+  getAllFeedbackMessages,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getUnreadFeedbackCount,
+  getUserMeetings,
   loginUser,
+  markFeedbackAsRead,
   registerUser,
   reviewLeave,
 } from "../controllers/admin.controller.js";
@@ -22,7 +29,7 @@ router.post("/registerUser", registerUser);
 
 router.post("/loginUser", loginUser);
 
-//empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
+
 router.post("/addEmployee",
   authenticate,
   authorize(["admin"]),
@@ -64,6 +71,47 @@ router.get(
   authenticate,
   authorize(["admin"]),
   getInboxMessages
+);
+
+
+
+router.get(
+  "/feedbackRead",
+  authenticate,
+  authorize(["admin"]),
+  markFeedbackAsRead
+);
+
+router.get(
+  "/UnreadFeedbackCount",
+  authenticate,
+  authorize(["admin"]),
+  getUnreadFeedbackCount
+);
+
+router.get(
+  "/AllFeedbackMessages",
+  authenticate,
+  authorize(["admin"]),
+  getAllFeedbackMessages
+);
+
+router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);
+
+router.get("/allMeetings", authenticate, authorize(["admin"]), getUserMeetings);
+
+router.post(
+  "/admin-create",
+  authenticate,
+  authorize(["admin"]),
+  createLeaveByAdmin
+);
+
+router.get(
+  "/getEmployeePerformance",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeePerformance
 );
 
 router.post(

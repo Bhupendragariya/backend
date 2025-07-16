@@ -838,5 +838,66 @@ export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
 
 
 
+export const getMyAttendance = catchAsyncErrors(async (req, res, next) => {
+  const { month, year } = req.query;
+try {
+  
+    if (!month || !year) {
+      return next(new ErrorHandler("Month and year are required", 400));
+    }
+  
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0, 23, 59, 59);
+  
+    const records = await Attendance.find({
+      employee: req.user.id,
+      date: { $gte: start, $lte: end }
+    });
+  
+    let present = 0, absent = 0, late = 0, wfh = 0, totalHours = 0;
+  
+    records.forEach(record => {
+      switch (record.status) {
+        case "Present": present++; break;
+        case "Absent": absent++; break;
+        case "Late": late++; break;
+        case "Work From Home": wfh++; break;
+      }
+      totalHours += record.workingHours;
+    });
+  
+    res.status(200).json({
+      success: true,
+      summary: {
+        present,
+        absent,
+        late,
+        workFromHome: wfh,
+        totalWorkingHours: totalHours
+      }
+    });
+} catch (error) {
+       return next(new ErrorHandler(error.message, 400));
+}
+});
 
 
+
+
+export const getUserMeetings = catchAsyncErrors(async (req, res, next) => {
+  const userId = req.user.id;
+try {
+  
+   
+    const meetings = await Meeting.find({ attendees: userId })
+      .sort({ date: 1 }) 
+      .limit(50); 
+  
+    res.status(200).json({
+      success: true,
+      meetings
+    });
+} catch (error) {
+ return next(new ErrorHandler(error.message, 400)); 
+}
+});
