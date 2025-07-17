@@ -2,11 +2,16 @@ import { Router } from "express";
 import {
   addDepartment,
   addEmployee,
+  addMeetingType,
   addPosition,
   approveDeleteRequest,
   approveUpdateRequest,
   deleteDepartment,
+  deleteMeetingType,
   deletePosition,
+  getAllDepartments,
+  getAllMeetingTypes,
+  getAllPositions,
   getInboxMessages,
   getLeavesWithEmployeeName,
   loginUser,
@@ -66,6 +71,13 @@ router.get(
   getInboxMessages
 );
 
+router.get(
+  "/getAllDepartments",
+  authenticate,
+  authorize(["admin"]),
+  getAllDepartments
+);
+
 router.post(
   "/addDepartment",
   authenticate,
@@ -80,6 +92,13 @@ router.delete(
   deleteDepartment
 )
 
+router.get(
+  "/getAllPositions",
+  authenticate,
+  authorize(["admin"]),
+  getAllPositions
+)
+
 router.post(
   "/addPosition",
   authenticate,
@@ -92,6 +111,41 @@ router.delete(
   authenticate,
   authorize(["admin"]),
   deletePosition
+)
+
+router.post(
+  "/addMeeting",
+  authenticate,
+  authorize(["admin"]),
+  createMeeting
+);
+
+router.get(
+  "/allMeetings",
+  authenticate,
+  authorize(["admin"]),
+  getUserMeetings
+);
+
+router.get(
+  "/getAllMeetingTypes",
+  authenticate,
+  authorize(["admin"]),
+  getAllMeetingTypes
+)
+
+router.post(
+  "/addMeetingType",
+  authenticate,
+  authorize(["admin"]),
+  addMeetingType,
+)
+
+router.delete(
+  "/deleteMeetingType/:typeId",
+  authenticate,
+  authorize(["admin"]),
+  deleteMeetingType
 )
 
 
