@@ -14,10 +14,11 @@ import Salary from "../models/salary.model.js";
 import BankAccount from "../models/banckAccount.model.js";
 import Department from "../models/department.model.js";
 import Position from "../models/position.model.js";
+import MeetingType from "../models/meetingType.model.js";
 import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
 
-
+//------auth related controllers------//
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
@@ -101,6 +102,9 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+
+
+//------documents related controllers------//
 // export const addEmployee = catchAsyncErrors(async (req, res, next) => {
 //   const { fullName, email, department, position, phone, ...rest } = req.body;
 
@@ -256,7 +260,6 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-//approve document delete request
 export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
 
@@ -287,6 +290,9 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
 });
 
 
+
+
+//------message related controllers------//
 export const getInboxMessages = async (req, res) => {
   try {
     const inbox = await Message.find({ recipient: req.user.id })
@@ -295,15 +301,13 @@ export const getInboxMessages = async (req, res) => {
 
     res.status(200).json({ messages: inbox });
   } catch (error) {
-   return next(new ErrorHandler(error.message, 400));
+    return next(new ErrorHandler(error.message, 400));
   }
 };
 
 
-
-
-
-export const markFeedbackAsRead = catchAsyncErrors( async (req, res, next) => {
+//------feedback related controllers------//
+export const markFeedbackAsRead = catchAsyncErrors(async (req, res, next) => {
   try {
     const feedback = await Feedback.findById(req.params.id);
     if (!feedback) return res.status(404).json({ error: 'Feedback not found' });
@@ -317,10 +321,6 @@ export const markFeedbackAsRead = catchAsyncErrors( async (req, res, next) => {
   }
 });
 
-
-
-
-
 export const getUnreadFeedbackCount = catchAsyncErrors(async (req, res, next) => {
   try {
     const unreadCount = await Feedback.countDocuments({ status: 'unread' });
@@ -333,11 +333,10 @@ export const getUnreadFeedbackCount = catchAsyncErrors(async (req, res, next) =>
   }
 });
 
-
-
-export const getAllFeedbackMessages =catchAsyncErrors(async (req, res, next) => {
+export const getAllFeedbackMessages = catchAsyncErrors(async (req, res, next) => {
   try {
     const feedbacks = await Feedback.find()
+      .populate('user', 'name email')
       .populate('user', ' email') 
       .sort({ createdAt: -1 });
 
@@ -353,105 +352,237 @@ export const getAllFeedbackMessages =catchAsyncErrors(async (req, res, next) => 
 
 
 
-
+//------meeting related controllers------//
 export const createMeeting = catchAsyncErrors(async (req, res, next) => {
- try {
-   const { name, type, date, time, description } = req.body;
- 
-   if (!name || !type || !date || !time) {
-     return next(new ErrorHandler("Missing required fields", 400));
-   }
- 
-   const [startTime, endTime] = time.split(' - ').map(t => t.trim());
-   const [dd, mm, yy] = date.split('-');
-   const formattedDate = new Date(`20${yy}-${mm}-${dd}`);
- 
- 
-   const users = await User.find({ role: { $in: ['employee'] } }); 
- 
-   const attendeeIds = users.map(user => user._id);
- 
- 
-   const meeting = await Meeting.create({
-     name,
-     type,
-     date: formattedDate,
-     startTime,
-     endTime,
-     description,
-     createdBy: req.user.id,
-     attendees: attendeeIds
-   });
- 
-   const notifications = attendeeIds.map(userId => ({
-     user: userId,
-     title: `New ${type}: ${name}`,
-     description: `Scheduled on ${date} at ${startTime}`,
-     type: 'meeting',
-     createdBy: req.user.id
-   }));
- 
-   await Notification.insertMany(notifications);
- 
-   res.status(201).json({
-     success: true,
-     message: 'Meeting created and all users notified.',
-     meeting,
-   });
- } catch (error) {
+  try {
+    const { name, type, date, time, description } = req.body;
+
+    if (!name || !type || !date || !time) {
+      return next(new ErrorHandler("Missing required fields", 400));
+    }
+
+    const [startTime, endTime] = time.split(' - ').map(t => t.trim());
+    const [dd, mm, yy] = date.split('-');
+    const formattedDate = new Date(`20${yy}-${mm}-${dd}`);
+
+
+    const users = await User.find({ role: { $in: ['employee'] } });
+
+    const attendeeIds = users.map(user => user._id);
+
+    const existingType = await MeetingType.findOne({ name: type });
+    if (!existingType) {
+      return next(new ErrorHandler("Meeting type does not exist", 400));
+    }
+
+    const meeting = await Meeting.create({
+      name,
+      type: existingType._id,
+      date: formattedDate,
+      startTime,
+      endTime,
+      description,
+      createdBy: req.user.id,
+      attendees: attendeeIds
+    });
+
+    const notifications = attendeeIds.map(userId => ({
+      user: userId,
+      title: `New ${type}: ${name}`,
+      description: `Scheduled on ${date} at ${startTime}`,
+      type: 'meeting',
+      createdBy: req.user.id
+    }));
+
+    await Notification.insertMany(notifications);
+
+    res.status(201).json({
+      success: true,
+      message: 'Meeting created and all users notified.',
+      meeting,
+    });
+  } catch (error) {
     return next(new ErrorHandler(error.message, 400));
- }
+  }
 });
-
-
 
 export const getUserMeetings = catchAsyncErrors(async (req, res, next) => {
   const userId = req.user.id;
-try {
-  
-   
+  try {
+
+
     const meetings = await Meeting.find({ attendees: userId })
-      .sort({ date: 1 }) 
-      .limit(50); 
-  
+      .sort({ date: 1 })
+      .limit(50);
+
     res.status(200).json({
       success: true,
       meetings
     });
-} catch (error) {
- return next(new ErrorHandler(error.message, 400)); 
-}
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
 });
 
+export const addMeetingType = catchAsyncErrors(async (req, res, next) => {
+  const loggedInUserId = req.user.id
 
+  const { name } = req.body;
+  if (!name) {
+    return next(new ErrorHandler("Meeting Type name is required", 400));
+  }
+
+  const existingMeetingType = await MeetingType.findOne({ name: { $regex: `^${name}$`, $options: "i" } });
+  if (existingMeetingType) {
+    return next(new ErrorHandler("Meeting Type already exists", 400));
+  }
+
+  const meetingType = await MeetingType.create({
+    name,
+    createdBy: loggedInUserId
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Meeting Type added successfully",
+    meetingType
+  });
+})
+
+export const deleteMeetingType = catchAsyncErrors(async (req, res, next) => {
+  const { typeId } = req.params;
+  if (!typeId) {
+    return next(new ErrorHandler("Meeting Type ID is required", 400));
+  }
+
+  const meetingType = await MeetingType.findById(typeId);
+  if (!meetingType) {
+    return next(new ErrorHandler("Meeting Type not found", 404));
+  }
+
+  // Remove meeting type from meetings and set to null
+  await Meeting.updateMany(
+    { type: typeId },
+    { $set: { type: null } }
+  );
+
+  await MeetingType.findByIdAndDelete(typeId);
+
+  res.status(200).json({
+    success: true,
+    message: "Meeting Type deleted successfully and all meetings' types set to null"
+  });
+})
+
+export const getAllMeetingTypes = catchAsyncErrors(async (req, res, next) => {
+  const meetingTypes = await MeetingType.find()
+
+  res.status(200).json({
+    success: true,
+    meetingTypes
+  });
+})
+
+
+
+//------leave related controllers------//
+export const getLeavesWithEmployeeName = catchAsyncErrors(
+  async (req, res, next) => {
+    const leaves = await Leave.find().populate("user", "email role").lean();
+
+    const enrichedLeaves = await Promise.all(
+      leaves.map(async (leave) => {
+        const employee = await Employee.findOne({
+          user: leave.user._id,
+        }).select("fullName");
+        return {
+          ...leave,
+          fullName: employee?.fullName || "N/A",
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: enrichedLeaves.length,
+      leaves: enrichedLeaves,
+    });
+  }
+);
+
+export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
+  const { leaveId } = req.params;
+  const userId = req.user.id;
+  const { status } = req.body;
+
+  const allowedStatuses = ["Approved", "Rejected"];
+  if (!allowedStatuses.includes(status)) {
+    return next(
+      new ErrorHandler(
+        `Invalid status. Allowed values: ${allowedStatuses.join(", ")}`,
+        400
+      )
+    );
+  }
+
+  const leave = await Leave.findById(leaveId);
+  if (!leave) {
+    return next(new ErrorHandler("Leave request not found", 404));
+  }
+
+  if (leave.status !== "Pending") {
+    return next(new ErrorHandler("Leave request is already reviewed", 400));
+  }
+
+  leave.status = status;
+  leave.reviewedBy = userId;
+  leave.reviewedAt = new Date();
+
+  await leave.save();
+
+  await sendNotification({
+    userId: leave.user.id,
+    title: "Leave Request Update",
+    message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${leave.status
+      }.`,
+    type: "Leave",
+    createdBy: req.user.id,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: `Leave request ${status.toLowerCase()} successfully`,
+    leave,
+  });
+});
 
 export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
   const {
-    employeeId,   
+    employeeId,
     leaveType,
-    startDate,    
-    endDate,      
+    startDate,
+    endDate,
     reason,
     comment
   } = req.body;
-try {
-  
+  try {
+
     if (!employeeId || !leaveType || !startDate || !endDate || !reason) {
       return next(new ErrorHandler("Please fill all required fields", 400));
     }
-  
-   
+
+
     const employee = await User.findById(employeeId);
     if (!employee) {
       return next(new ErrorHandler("Employee not found", 404));
     }
-  
-   
+
+
     const toDate = (dateStr) => {
       const [dd, mm, yy] = dateStr.split("-");
       return new Date(`20${yy}-${mm}-${dd}`);
     };
-  
+
     const leave = await Leave.create({
       user: employeeId,
       leaveType,
@@ -464,23 +595,23 @@ try {
       reviewedAt: null,
       status: "Pending"
     });
-  
+
     res.status(201).json({
       success: true,
       message: "Leave request submitted by Admin/HR.",
       leave
     });
-} catch (error) {
-  return next(new ErrorHandler(error.message, 400)); 
-}
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
 });
 
 
 
-
-export const getAllEmployeePerformance =  catchAsyncErrors(async (req, res, next) => {
+//------performance related controllers------//
+export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
   try {
-   
+
     const employees = await Employee.find();
 
 
@@ -504,34 +635,31 @@ export const getAllEmployeePerformance =  catchAsyncErrors(async (req, res, next
 
     res.status(200).json({ success: true, data: results });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 400)); 
+    return next(new ErrorHandler(error.message, 400));
   }
 });
-
-
-
 
 export const saveEvaluation = async (req, res, next) => {
   try {
     const { employeeId } = req.params;
-    const evaluatorId = req.user.id; 
+    const evaluatorId = req.user.id;
     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
 
     const performanceScore = (
       (workQuality + productivity + reliability + teamwork + innovation) / 5
     ).toFixed(2);
 
-   
-    let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId,  });
+
+    let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
 
     if (evaluation) {
-     
+
       evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
       evaluation.notes = notes;
       evaluation.performanceScore = performanceScore;
       await evaluation.save();
     } else {
-  
+
       evaluation = await PerformanceEvaluation.create({
         employee: employeeId,
         evaluator: evaluatorId,
@@ -543,11 +671,12 @@ export const saveEvaluation = async (req, res, next) => {
 
     res.status(200).json({ success: true, evaluation });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 400)); 
+    return next(new ErrorHandler(error.message, 400));
   }
 };
 
 
+//------add employee related controllers------//
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
     fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
@@ -717,6 +846,15 @@ export const deleteDepartment = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
+export const getAllDepartments = catchAsyncErrors(async (req, res, next) => {
+  const departments = await Department.find();
+
+  res.status(200).json({
+    success: true,
+    departments
+  });
+});
+
 export const addPosition = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
 
@@ -766,6 +904,15 @@ export const deletePosition = catchAsyncErrors(async (req, res, next) => {
     message: "Position deleted successfully and all employees' positions set to null"
   });
 })
+
+export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
+  const positions = await Position.find();
+
+  res.status(200).json({
+    success: true,
+    positions
+  });
+});
 
 
 

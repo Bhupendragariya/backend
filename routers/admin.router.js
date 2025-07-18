@@ -2,16 +2,15 @@ import { Router } from "express";
 import {
   addDepartment,
   addEmployee,
+  addMeetingType,
   addPosition,
   approveDeleteRequest,
   approveUpdateRequest,
   createLeaveByAdmin,
   createMeeting,
   deleteDepartment,
+  deleteMeetingType,
   deletePosition,
-  getAllEmployeeCards,
-  getAllEmployeePerformance,
-  getAllFeedbackMessages,
   getInboxMessages,
   getLeavesWithEmployeeName,
   getSinglePayslip,
@@ -75,62 +74,6 @@ router.get(
   getInboxMessages
 );
 
-
-
-router.get(
-  "/feedbackRead",
-  authenticate,
-  authorize(["admin"]),
-  markFeedbackAsRead
-);
-
-router.get(
-  "/UnreadFeedbackCount",
-  authenticate,
-  authorize(["admin"]),
-  getUnreadFeedbackCount
-);
-
-router.get(
-  "/AllFeedbackMessages",
-  authenticate,
-  authorize(["admin"]),
-  getAllFeedbackMessages
-);
-
-
-router.get(
-  "/getSinglePayslip",
-  authenticate,
-  authorize(["admin"]),
-  getSinglePayslip
-);
-
-router.get(
-  "/getAllEmployee",
-  authenticate,
-  authorize(["admin"]),
-  getAllEmployeeCards
-);
-
-router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);
-
-router.get("/allMeetings", authenticate, authorize(["admin"]), getUserMeetings);
-
-router.post(
-  "/admin-create",
-  authenticate,
-  authorize(["admin"]),
-  createLeaveByAdmin
-);
-
-router.get(
-  "/getEmployeePerformance",
-  authenticate,
-  authorize(["admin"]),
-  getAllEmployeePerformance
-);
-
 router.post(
   "/addDepartment",
   authenticate,
@@ -145,6 +88,13 @@ router.delete(
   deleteDepartment
 )
 
+router.get(
+  "/getAllPositions",
+  authenticate,
+  authorize(["admin"]),
+  getAllPositions
+)
+
 router.post(
   "/addPosition",
   authenticate,
@@ -157,6 +107,41 @@ router.delete(
   authenticate,
   authorize(["admin"]),
   deletePosition
+)
+
+router.post(
+  "/addMeeting",
+  authenticate,
+  authorize(["admin"]),
+  createMeeting
+);
+
+router.get(
+  "/allMeetings",
+  authenticate,
+  authorize(["admin"]),
+  getUserMeetings
+);
+
+router.get(
+  "/getAllMeetingTypes",
+  authenticate,
+  authorize(["admin"]),
+  getAllMeetingTypes
+)
+
+router.post(
+  "/addMeetingType",
+  authenticate,
+  authorize(["admin"]),
+  addMeetingType,
+)
+
+router.delete(
+  "/deleteMeetingType/:typeId",
+  authenticate,
+  authorize(["admin"]),
+  deleteMeetingType
 )
 
 

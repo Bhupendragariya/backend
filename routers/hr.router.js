@@ -84,7 +84,7 @@ router.get(
   getAllFeedbackMessages
 );
 
-router.post("/Meeting", authenticate, authorize(["hr"]), createMeeting);
+router.post("/addMeeting", authenticate, authorize(["hr"]), createMeeting);
 
 router.get("/allMeetings", authenticate, authorize(["hr"]), getUserMeetings);
 
