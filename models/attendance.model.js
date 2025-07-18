@@ -18,6 +18,10 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+
+  locationType: { type: String },
+
+
   workingHours: {
     type: Number,
     default: 0,
@@ -27,6 +31,10 @@ const attendanceSchema = new mongoose.Schema({
     enum: ['Present', 'Absent', 'Late', 'Work From Home'],
     default: 'Present',
   },
+
+   notes: { type: String }
+
+   
 });
 
 

@@ -3,8 +3,10 @@ import {
   addEmployee,
   approveDeleteRequest,
   approveUpdateRequest,
+  getAllEmployeeCards,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getSinglePayslip,
   loginUser,
   reviewLeave,
 } from "../controllers/hr.controller.js";
@@ -100,6 +102,22 @@ router.get(
   getAllEmployeePerformance
 );
 
+
+router.get(
+  "/getSinglePayslip",
+  authenticate,
+  authorize(["hr"]),
+  getSinglePayslip
+);
+
+router.get(
+  "/getAllEmployee",
+  authenticate,
+  authorize(["hr"]),
+  getAllEmployeeCards
+);
+
 router.post("/Evaluation", authenticate, authorize(["hr"]), saveEvaluation);
 
 export default router;
+

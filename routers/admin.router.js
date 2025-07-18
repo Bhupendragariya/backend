@@ -9,10 +9,12 @@ import {
   createMeeting,
   deleteDepartment,
   deletePosition,
+  getAllEmployeeCards,
   getAllEmployeePerformance,
   getAllFeedbackMessages,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getSinglePayslip,
   getUnreadFeedbackCount,
   getUserMeetings,
   loginUser,
@@ -94,6 +96,21 @@ router.get(
   authenticate,
   authorize(["admin"]),
   getAllFeedbackMessages
+);
+
+
+router.get(
+  "/getSinglePayslip",
+  authenticate,
+  authorize(["admin"]),
+  getSinglePayslip
+);
+
+router.get(
+  "/getAllEmployee",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeeCards
 );
 
 router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);

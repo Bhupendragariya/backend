@@ -9,6 +9,8 @@ import cloudinary from "../config/cloudinary.js";
 import Document from "../models/document.model.js";
 import Feedback from "../models/feedback.model.js";
 import Meeting from "../models/meeting.model.js";
+import Payslip from "../models/payslip.model.js";
+import Attendance from "../models/attendance.model.js";
 
 
 
@@ -483,7 +485,7 @@ export const getAllEmployeePerformance =  catchAsyncErrors(async (req, res, next
 
 
 
-export const saveEvaluation = async (req, res, next) => {
+export const saveEvaluation =  catchAsyncErrors( async (req, res, next) => {
   try {
     const { employeeId } = req.params;
     const evaluatorId = req.user.id; 
@@ -517,7 +519,244 @@ export const saveEvaluation = async (req, res, next) => {
   } catch (error) {
     return next(new ErrorHandler(error.message, 400)); 
   }
+});
+
+
+
+
+
+export const getSinglePayslip = catchAsyncErrors(async (req, res, next) => {
+  const payslipId = req.params.id;
+
+ try {
+   const payslip = await Payslip.findById(payslipId)
+     .populate({
+       path: "employee",
+       populate: [
+         { path: "position" },
+         { path: "department" },
+         { path: "bankDetails" }
+       ]
+     });
+ 
+   if (!payslip) {
+     return res.status(404).json({ success: false, message: "Payslip not found" });
+   }
+ 
+   const emp = payslip.employee;
+ 
+   const response = {
+     company: {
+       name: "NovaNectar Private Limited",
+       address: "123 Business Park, Mumbai, India",
+       gst: "27AABCU9603R1ZX"
+     },
+     month: payslip.month,
+     year: payslip.year,
+ 
+     employee: {
+       name: emp.fullName,
+       id: emp.employeeId,
+       department: emp.department?.name || "N/A",
+       position: emp.position?.name || "N/A",
+       bankAccount: emp.bankDetails?.accountNumber
+         ? maskBankAccount(emp.bankDetails.accountNumber)
+         : "N/A",
+       pan: emp.bankDetails?.pan || "N/A"
+     },
+ 
+     payment: {
+       status: payslip.paymentStatus,
+       date: payslip.paymentDate ? formatDate(payslip.paymentDate) : "Pending"
+     },
+ 
+     attendance: {
+       present: payslip.attendance.present,
+       absent: payslip.attendance.absent,
+       onLeave: payslip.attendance.onLeave,
+       holidays: payslip.attendance.holidays
+     },
+ 
+     earnings: {
+       basic: payslip.earnings.basic,
+       hra: payslip.earnings.hra,
+       vehiclePetrol: payslip.earnings.vehiclePetrol,
+       medicalAllowance: payslip.earnings.medicalAllowance,
+       grossSalary: payslip.grossSalary
+     },
+ 
+     deductions: {
+       professionalTax: payslip.deductions.professionalTax,
+       tds: payslip.deductions.tds,
+       pf: payslip.deductions.pf,
+       attendanceDeduction: payslip.deductions.attendanceDeduction,
+       totalDeductions: payslip.totalDeductions
+     },
+ 
+     netSalary: payslip.netSalary,
+     amountInWords: convertToWords(payslip.netSalary)
+   };
+ 
+   res.status(200).json({
+     success: true,
+     payslip: response
+   });
+ } catch (error) {
+   return next(new ErrorHandler(error.message, 400));
+ }
+});
+
+
+const maskBankAccount = (accountNumber) => {
+  const last4 = accountNumber.slice(-4);
+  return `XXXX-XXXX-${last4}`;
+};
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+};
+
+const convertToWords = (num) => {
+
+  return `Fifteen Thousand Three Hundred Twenty rupees only`; 
 };
 
 
+export const getAllEmployeeCards = catchAsyncErrors(async (req, res, next) => {
 
+try {
+  
+    const payslips = await Payslip.find()
+      .populate({
+        path: "employee",
+        populate: { path: "position" }
+      })
+      .sort({ createdAt: -1 });
+  
+    const latestPayslipsMap = new Map();
+  
+    payslips.forEach(payslip => {
+      const empId = payslip.employee._id.toString();
+      if (!latestPayslipsMap.has(empId)) {
+        latestPayslipsMap.set(empId, payslip);
+      }
+    });
+  
+    const formatted = Array.from(latestPayslipsMap.values()).map(payslip => {
+      const emp = payslip.employee;
+      const fullName = emp.fullName;
+      const employeeId = emp.employeeId;
+      const role = emp.position?.name || "Unknown";
+  
+      const totalAllowances = 
+        payslip.earnings.hra +
+        payslip.earnings.vehiclePetrol +
+        payslip.earnings.medicalAllowance;
+  
+      const totalDeductions = payslip.totalDeductions;
+  
+      return {
+        name: fullName,
+        id: employeeId,
+        role: role,
+        attendance: {
+          P: payslip.attendance.present,
+          A: payslip.attendance.absent,
+          L: payslip.attendance.onLeave
+        },
+        basicSalary: payslip.earnings.basic,
+        allowances: totalAllowances,
+        deductions: totalDeductions,
+        netSalary: payslip.netSalary,
+        paymentStatus: payslip.paymentStatus,
+        payslipId: payslip.id,
+        month: payslip.month,
+        year: payslip.year
+      };
+    });
+  
+    res.status(200).json({
+      success: true,
+      employees: formatted
+    });
+} catch (error) {
+   return next(new ErrorHandler(error.message, 400));
+}
+
+   
+});
+
+
+
+
+
+export const updateAttendance = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const { attendanceId } = req.params;
+    const {
+      date,
+      status,
+      punchIn,
+      punchOut,
+      locationType,
+      notes
+    } = req.body;
+
+ 
+    const updatedAttendance = await Attendance.findByIdAndUpdate(
+      attendanceId,
+      {
+        date,
+        status,
+        punchIn,
+        punchOut,
+        locationType,
+        notes
+      },
+      { new: true }
+    );
+
+    if (!updatedAttendance) {
+      return next(new ErrorHandler("Attendance record not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Attendance updated successfully",
+      data: updatedAttendance
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
+
+export const getGeneralSettings = catchAsyncErrors(async (req, res, next) => {
+  const settings = await Settings.findOne().lean();
+  if (!settings) return next(new ErrorHandler('Settings not found', 404));
+  res.status(200).json({ success: true, data: settings });
+});
+
+
+export const saveGeneralSettings = catchAsyncErrors(async (req, res, next) => {
+  const {
+    company,
+    systemDefaults,
+    preferences
+  } = req.body;
+
+  let settings = await Settings.findOne();
+  if (!settings) {
+    settings = await Settings.create({ company, systemDefaults, preferences });
+  } else {
+    settings.company = company;
+    settings.systemDefaults = systemDefaults;
+    settings.preferences = preferences;
+    await settings.save();
+  }
+  res.status(200).json({ success: true, message: "Settings saved successfully", data: settings });
+});

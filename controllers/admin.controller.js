@@ -14,6 +14,8 @@ import Salary from "../models/salary.model.js";
 import BankAccount from "../models/banckAccount.model.js";
 import Department from "../models/department.model.js";
 import Position from "../models/position.model.js";
+import Payslip from "../models/payslip.model.js";
+import Settings from "../models/setting.model.js";
 
 
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
@@ -215,8 +217,6 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-
-//approve document update request
 export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
 
@@ -225,12 +225,11 @@ export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("No pending update request found", 404));
   }
 
-  // Delete old Cloudinary file
+ 
   if (document.publicId) {
     await cloudinary.uploader.destroy(document.publicId);
   }
 
-  // Apply requested changes
   const requestedChanges = document.requestedChanges;
 
   document.type = requestedChanges.type;
@@ -339,7 +338,7 @@ export const getUnreadFeedbackCount = catchAsyncErrors(async (req, res, next) =>
 export const getAllFeedbackMessages =catchAsyncErrors(async (req, res, next) => {
   try {
     const feedbacks = await Feedback.find()
-      .populate('user', 'name email') 
+      .populate('user', ' email') 
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -767,3 +766,202 @@ export const deletePosition = catchAsyncErrors(async (req, res, next) => {
     message: "Position deleted successfully and all employees' positions set to null"
   });
 })
+
+
+
+export const getSinglePayslip = catchAsyncErrors(async (req, res, next) => {
+  const payslipId = req.params.id;
+
+  const payslip = await Payslip.findById(payslipId)
+    .populate({
+      path: "employee",
+      populate: [
+        { path: "position" },
+        { path: "department" },
+        { path: "bankDetails" }
+      ]
+    });
+
+  if (!payslip) {
+    return res.status(404).json({ success: false, message: "Payslip not found" });
+  }
+
+  const emp = payslip.employee;
+
+  const response = {
+    company: {
+      name: "NovaNectar Private Limited",
+      address: "123 Business Park, Mumbai, India",
+      gst: "27AABCU9603R1ZX"
+    },
+    month: payslip.month,
+    year: payslip.year,
+
+    employee: {
+      name: emp.fullName,
+      id: emp.employeeId,
+      department: emp.department?.name || "N/A",
+      position: emp.position?.name || "N/A",
+      bankAccount: emp.bankDetails?.accountNumber
+        ? maskBankAccount(emp.bankDetails.accountNumber)
+        : "N/A",
+      pan: emp.bankDetails?.pan || "N/A"
+    },
+
+    payment: {
+      status: payslip.paymentStatus,
+      date: payslip.paymentDate ? formatDate(payslip.paymentDate) : "Pending"
+    },
+
+    attendance: {
+      present: payslip.attendance.present,
+      absent: payslip.attendance.absent,
+      onLeave: payslip.attendance.onLeave,
+      holidays: payslip.attendance.holidays
+    },
+
+    earnings: {
+      basic: payslip.earnings.basic,
+      hra: payslip.earnings.hra,
+      vehiclePetrol: payslip.earnings.vehiclePetrol,
+      medicalAllowance: payslip.earnings.medicalAllowance,
+      grossSalary: payslip.grossSalary
+    },
+
+    deductions: {
+      professionalTax: payslip.deductions.professionalTax,
+      tds: payslip.deductions.tds,
+      pf: payslip.deductions.pf,
+      attendanceDeduction: payslip.deductions.attendanceDeduction,
+      totalDeductions: payslip.totalDeductions
+    },
+
+    netSalary: payslip.netSalary,
+    amountInWords: convertToWords(payslip.netSalary)
+  };
+
+  res.status(200).json({
+    success: true,
+    payslip: response
+  });
+});
+
+
+const maskBankAccount = (accountNumber) => {
+  const last4 = accountNumber.slice(-4);
+  return `XXXX-XXXX-${last4}`;
+};
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+};
+
+const convertToWords = (num) => {
+
+  return `Fifteen Thousand Three Hundred Twenty rupees only`; 
+};
+
+
+export const getAllEmployeeCards = catchAsyncErrors(async (req, res, next) => {
+  const payslips = await Payslip.find()
+    .populate({
+      path: "employee",
+      populate: { path: "position" }
+    })
+    .sort({ createdAt: -1 });
+
+  const latestPayslipsMap = new Map();
+
+  payslips.forEach(payslip => {
+    const empId = payslip.employee._id.toString();
+    if (!latestPayslipsMap.has(empId)) {
+      latestPayslipsMap.set(empId, payslip);
+    }
+  });
+
+  const formatted = Array.from(latestPayslipsMap.values()).map(payslip => {
+    const emp = payslip.employee;
+    const fullName = emp.fullName;
+    const employeeId = emp.employeeId;
+    const role = emp.position?.name || "Unknown";
+
+    const totalAllowances = 
+      payslip.earnings.hra +
+      payslip.earnings.vehiclePetrol +
+      payslip.earnings.medicalAllowance;
+
+    const totalDeductions = payslip.totalDeductions;
+
+    return {
+      name: fullName,
+      id: employeeId,
+      role: role,
+      attendance: {
+        P: payslip.attendance.present,
+        A: payslip.attendance.absent,
+        L: payslip.attendance.onLeave
+      },
+      basicSalary: payslip.earnings.basic,
+      allowances: totalAllowances,
+      deductions: totalDeductions,
+      netSalary: payslip.netSalary,
+      paymentStatus: payslip.paymentStatus,
+      payslipId: payslip._id,
+      month: payslip.month,
+      year: payslip.year
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    employees: formatted
+  });
+});
+
+
+
+export const updateAttendance = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const { attendanceId } = req.params;
+    const {
+      date,
+      status,
+      punchIn,
+      punchOut,
+      locationType,
+      notes
+    } = req.body;
+
+ 
+    const updatedAttendance = await Attendance.findByIdAndUpdate(
+      attendanceId,
+      {
+        date,
+        status,
+        punchIn,
+        punchOut,
+        locationType,
+        notes
+      },
+      { new: true }
+    );
+
+    if (!updatedAttendance) {
+      return next(new ErrorHandler("Attendance record not found", 404));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Attendance updated successfully",
+      data: updatedAttendance
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
+
