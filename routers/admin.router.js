@@ -17,6 +17,7 @@ import {
   getAllDepartments,
   getAllMeetingTypes,
   getAllPositions,
+  getEmpIdConfig,
   getInboxMessages,
   getLeavesWithEmployeeName,
   getSinglePayslip,
@@ -26,6 +27,7 @@ import {
   markFeedbackAsRead,
   registerUser,
   reviewLeave,
+  updateEmpIdConfig,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -214,6 +216,21 @@ router.delete(
   authenticate,
   authorize(["admin"]),
   deleteMeetingType
+)
+
+//settings
+router.get(
+  "/getEmpIdConfig",
+  authenticate,
+  authorize(["admin"]),
+  getEmpIdConfig
+)
+
+router.put(
+  "/updateEmpIdConfig",
+  authenticate,
+  authorize(["admin"]),
+  updateEmpIdConfig
 )
 
 

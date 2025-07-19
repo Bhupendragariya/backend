@@ -15,6 +15,7 @@ import BankAccount from "../models/banckAccount.model.js";
 import Department from "../models/department.model.js";
 import Position from "../models/position.model.js";
 import MeetingType from "../models/meetingType.model.js";
+import EmpIdConfig from "../models/empIdConfig.model.js";
 import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
 
@@ -623,12 +624,27 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
 
   //bio and deductions are optional
   if (
-    !fullName || !employeeId || !email || !contactNo || !emgContactName || !emgContactNo ||
+    !fullName || !email || !contactNo || !emgContactName || !emgContactNo ||
     !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
     !bankName || !accountNumber || !ifscCode ||
     !basic || !salaryCycle || !allowances || !netSalary
   ) {
     return next(new ErrorHandler("Please provide all required fields.", 400));
+  }
+
+  //emp id config
+  const empIdConfig = await EmpIdConfig.findOne();
+  let finalEmployeeId = employeeId;
+
+  if (empIdConfig?.autoGenerate) {
+    const count = await Employee.countDocuments();
+    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const idNumber = String(count + 1).padStart(empIdConfig.idNumberLength, '0');
+    finalEmployeeId = `${empIdConfig.idPrefix}/${month}/${idNumber}`;
+  }
+
+  if (!finalEmployeeId) {
+    return next(new ErrorHandler("Employee ID is required or failed to generate automatically", 400));
   }
 
   //chk existing user and employee
@@ -637,7 +653,7 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("User already exists with this email", 400));
   }
 
-  const existingEmployee = await Employee.findOne({ employeeId });
+  const existingEmployee = await Employee.findOne({ employeeId: finalEmployeeId });
   if (existingEmployee) {
     return next(new ErrorHandler("Employee ID already exists", 400));
   }
@@ -654,7 +670,7 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
 
   const user = await User.create({
     email,
-    password: employeeId,
+    password: finalEmployeeId,
     role: 'employee'
   })
 
@@ -706,7 +722,7 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
 
   const employee = await Employee.create({
     user: user._id,
-    employeeId,
+    employeeId: finalEmployeeId,
     fullName,
     contactNo,
     emergencyContact: {
@@ -731,6 +747,7 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   })
 })
 
+//------department and position related controllers------//
 export const addDepartment = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
 
@@ -848,6 +865,41 @@ export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
     positions
   });
 });
+
+//------settings related controllers------//
+export const getEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
+  const empIdConfig = await EmpIdConfig.findOne();
+
+  if (!empIdConfig) {
+    return next(new ErrorHandler("Employee ID configuration not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    empIdConfig
+  });
+})
+
+export const updateEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
+  const empIdConfig = await EmpIdConfig.findOne();
+  if (!empIdConfig) {
+    return next(new ErrorHandler("Employee ID configuration not found", 404));
+  }
+
+  const { autoGenerate, idPrefix, idNumberLength } = req.body;
+  empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
+  empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
+  empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
+  await empIdConfig.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Employee ID configuration updated successfully",
+    empIdConfig
+  });
+})
+
+
 
 
 
