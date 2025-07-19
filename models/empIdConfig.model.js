@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const empIdConfigSchema = new mongoose.Schema({
+
   autoGenerate: {
     type: Boolean,
     default: true,
@@ -12,6 +13,10 @@ const empIdConfigSchema = new mongoose.Schema({
   idNumberLength: {
     type: Number,
     default: 4,
+  },
+  lastNumber: {
+    type: Number,
+    default: 0,
   },
 })
 

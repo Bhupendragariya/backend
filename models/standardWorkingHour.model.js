@@ -1,16 +1,16 @@
 import mongoose from "mongoose";
 
 const standardWorkingHourSchema = new mongoose.Schema({
-  startTime: {// '09:00'
+  startTime: {
     type: String,
   },
-  endTime: {  // '18:00'
+  endTime: { 
     type: String,
   },
-  breakDuration: { //in minutes
+  breakDuration: {
     type: Number,
   },
-  weeklyHours: { //in minutes
+  weeklyHours: {
     type: Number,
   },
 })

@@ -572,7 +572,7 @@ export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next)
   }
 });
 
-export const saveEvaluation = async (req, res, next) => {
+export const saveEvaluation =  catchAsyncErrors(async (req, res, next) => {
   try {
     const { employeeId } = req.params;
     const evaluatorId = req.user.id;
@@ -606,7 +606,7 @@ export const saveEvaluation = async (req, res, next) => {
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
-};
+});
 
 
 //------add employee related controllers------//
@@ -617,7 +617,7 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
     fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
     //bank details
-    bankName, accountNumber, ifscCode,
+    bankName, accountNumber, ifscCode,     
     //salary details
     basic, salaryCycle, allowances, deductions, netSalary
   } = req.body
