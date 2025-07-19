@@ -880,6 +880,30 @@ export const getEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
+export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
+  const { autoGenerate, idPrefix, idNumberLength } = req.body;
+
+  let empIdConfig = await EmpIdConfig.findOne();
+  if (!empIdConfig) {
+    empIdConfig = await EmpIdConfig.create({
+      autoGenerate,
+      idPrefix,
+      idNumberLength
+    });
+  } else {
+    empIdConfig.autoGenerate = autoGenerate;
+    empIdConfig.idPrefix = idPrefix;
+    empIdConfig.idNumberLength = idNumberLength;
+    await empIdConfig.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Employee ID configuration set successfully",
+    empIdConfig
+  });
+})
+
 export const updateEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
   const empIdConfig = await EmpIdConfig.findOne();
   if (!empIdConfig) {

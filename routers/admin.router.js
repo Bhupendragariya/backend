@@ -6,6 +6,7 @@ import {
   addPosition,
   approveDeleteRequest,
   approveUpdateRequest,
+  createMeeting,
   createLeaveByAdmin,
   createMeeting,
   deleteDepartment,
@@ -20,6 +21,7 @@ import {
   getEmpIdConfig,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getUserMeetings,
   getSinglePayslip,
   getUnreadFeedbackCount,
   getUserMeetings,
@@ -27,6 +29,7 @@ import {
   markFeedbackAsRead,
   registerUser,
   reviewLeave,
+  setEmpIdConfig,
   updateEmpIdConfig,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
@@ -224,6 +227,13 @@ router.get(
   authenticate,
   authorize(["admin"]),
   getEmpIdConfig
+)
+
+router.post(
+  "/setEmpIdConfig",
+  authenticate,
+  authorize(["admin"]),
+  setEmpIdConfig
 )
 
 router.put(
