@@ -11,6 +11,7 @@ import Feedback from "../models/feedback.model.js";
 import Meeting from "../models/meeting.model.js";
 import Payslip from "../models/payslip.model.js";
 import Attendance from "../models/attendance.model.js";
+import Settings from "../models/setting.model.js";
 
 
 

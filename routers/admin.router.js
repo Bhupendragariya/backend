@@ -11,6 +11,12 @@ import {
   deleteDepartment,
   deleteMeetingType,
   deletePosition,
+  getAllEmployeeCards,
+  getAllEmployeePerformance,
+  getAllFeedbackMessages,
+  getAllDepartments,
+  getAllMeetingTypes,
+  getAllPositions,
   getInboxMessages,
   getLeavesWithEmployeeName,
   getSinglePayslip,
@@ -23,6 +29,9 @@ import {
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
+
+
+
 
 const router = Router();
 
@@ -72,6 +81,69 @@ router.get(
   authenticate,
   authorize(["admin"]),
   getInboxMessages
+);
+
+
+
+router.get(
+  "/feedbackRead",
+  authenticate,
+  authorize(["admin"]),
+  markFeedbackAsRead
+);
+
+router.get(
+  "/UnreadFeedbackCount",
+  authenticate,
+  authorize(["admin"]),
+  getUnreadFeedbackCount
+);
+
+router.get(
+  "/AllFeedbackMessages",
+  authenticate,
+  authorize(["admin"]),
+  getAllFeedbackMessages
+);
+
+
+router.get(
+  "/getSinglePayslip",
+  authenticate,
+  authorize(["admin"]),
+  getSinglePayslip
+);
+
+router.get(
+  "/getAllEmployee",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeeCards
+);
+
+router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);
+
+router.get("/allMeetings", authenticate, authorize(["admin"]), getUserMeetings);
+
+router.post(
+  "/admin-create",
+  authenticate,
+  authorize(["admin"]),
+  createLeaveByAdmin
+);
+
+router.get(
+  "/getEmployeePerformance",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeePerformance);
+
+
+router.get(
+  "/getAllDepartments",
+  authenticate,
+  authorize(["admin"]),
+  getAllDepartments
 );
 
 router.post(

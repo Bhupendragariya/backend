@@ -13,6 +13,7 @@ import sendEmail from '../util/sendEmail.js';
 import fs from 'fs';
 import Message from "../models/message.model.js";
 import Feedback from "../models/feedback.model.js";
+import Salary from "../models/salary.model.js";
 
 
 
@@ -695,6 +696,8 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
 
 
 ///send a email
+
+
 export const sendMessageToUser = catchAsyncErrors(async (req, res) => {
   try {
     const { recipientId, subject, message, type } = req.body;
