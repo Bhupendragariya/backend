@@ -27,9 +27,9 @@ const employeeSchema = new mongoose.Schema(
       phone: Number,
     },
 
-    fatherName: {
-      type: String,
-    },
+    // fatherName: {
+    //   type: String,
+    // },
 
     dob: {
       type: Date,
@@ -49,7 +49,6 @@ const employeeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Position",
     },
-
     joinedOn: {
       type: Date,
       default: Date.now,
@@ -58,6 +57,15 @@ const employeeSchema = new mongoose.Schema(
       type: String,
     },
     permanentAddress: {
+      type: String,
+    },
+    pincode: {
+      type: Number,
+    },
+    city: {
+      type: String,
+    },
+    state: {
       type: String,
     },
     documents: [{

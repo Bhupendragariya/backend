@@ -6,6 +6,7 @@ import {
   addPosition,
   approveDeleteRequest,
   approveUpdateRequest,
+  createMeeting,
   deleteDepartment,
   deleteMeetingType,
   deletePosition,
@@ -15,9 +16,11 @@ import {
   getEmpIdConfig,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getUserMeetings,
   loginUser,
   registerUser,
   reviewLeave,
+  setEmpIdConfig,
   updateEmpIdConfig,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
@@ -156,6 +159,13 @@ router.get(
   authenticate,
   authorize(["admin"]),
   getEmpIdConfig
+)
+
+router.post(
+  "/setEmpIdConfig",
+  authenticate,
+  authorize(["admin"]),
+  setEmpIdConfig
 )
 
 router.put(
