@@ -1126,3 +1126,240 @@ export const updateAttendance = catchAsyncErrors(async (req, res, next) => {
 
 
 
+
+
+
+
+
+
+export const getGeneralSettings = catchAsyncErrors(async (req, res, next) => {
+  const settings = await Settings.findOne().lean();
+  if (!settings) return next(new ErrorHandler('Settings not found', 404));
+  res.status(200).json({ success: true, data: settings });
+});
+
+
+export const saveGeneralSettings = catchAsyncErrors(async (req, res, next) => {
+  const {
+    company,
+    systemDefaults,
+    preferences
+  } = req.body;
+
+  let settings = await Settings.findOne();
+  if (!settings) {
+    settings = await Settings.create({ company, systemDefaults, preferences });
+  } else {
+    settings.company = company;
+    settings.systemDefaults = systemDefaults;
+    settings.preferences = preferences;
+    await settings.save();
+  }
+  res.status(200).json({ success: true, message: "Settings saved successfully", data: settings });
+});
+
+
+
+export const updateSystemDefaults = catchAsyncErrors(async (req, res, next) => {
+
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = new Settings({ systemDefaults: req.body });
+    } else {
+      settings.systemDefaults = req.body;
+    }
+    await settings.save();
+    res.status(200).json({ success: true, message: "System defaults updated", data: settings.systemDefaults });
+
+  
+});
+
+
+
+
+export const getPreferences = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const settings = await Settings.findOne().lean();
+    if (!settings || !settings.preferences) {
+      return res.status(404).json({ error: "Preferences not found" });
+    }
+    res.status(200).json({ success: true, data: settings.preferences });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export const updatePreferences =catchAsyncErrors(async (req, res, next) => {
+
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = new Settings({ preferences: req.body });
+    } else {
+      settings.preferences = req.body;
+    }
+    await settings.save();
+    res.status(200).json({ success: true, message: "Preferences updated", data: settings.preferences });
+ 
+});
+
+
+export const getAttendanceSettings = catchAsyncErrors(async (req, res, next) => {
+
+    const settings = await Attendance.findOne().lean();
+    if (!settings) {
+      return res.status(404).json({ error: 'Attendance settings not found' });
+    }
+    res.status(200).json({ success: true, data: settings });
+
+});
+
+
+export const updateAttendanceSettings = catchAsyncErrors(async (req, res, next) => {
+
+    const { checkInBufferTime, checkOutBufferTime, lateMarkThreshold, halfDayThreshold } = req.body;
+
+    let settings = await Attendance.findOne();
+    if (!settings) {
+      settings = new AttendanceSettings({ checkInBufferTime, checkOutBufferTime, lateMarkThreshold, halfDayThreshold });
+    } else {
+      settings.checkInBufferTime = checkInBufferTime;
+      settings.checkOutBufferTime = checkOutBufferTime;
+      settings.lateMarkThreshold = lateMarkThreshold;
+      settings.halfDayThreshold = halfDayThreshold;
+    }
+
+    await settings.save();
+    res.status(200).json({ success: true, message: 'Attendance settings updated', data: settings });
+  
+});
+
+
+export const getWeekendDays = async (req, res) => {
+
+    let settings = await Settings.findOne();
+
+    if (!settings) {
+    
+      settings = await Settings.create({
+        workConfig: { weekendDays: ['Saturday', 'Sunday'] }
+      });
+    }
+
+    res.json({
+      weekendDays: settings.workConfig.weekendDays
+    });
+
+
+};
+
+
+
+export const updateWeekendDays = catchAsyncErrors(async (req, res) => {
+
+    const { weekendDays } = req.body;
+
+    if (!Array.isArray(weekendDays)) {
+      return res.status(400).json({ error: "weekendDays must be an array" });
+    }
+
+    const updatedSettings = await Settings.findOneAndUpdate(
+      {},
+      { 'workConfig.weekendDays': weekendDays },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      message: 'Weekend days updated successfully',
+      weekendDays: updatedSettings.workConfig.weekendDays
+    });
+
+});
+
+
+
+export const getLocationSettings = catchAsyncErrors(async (req, res) => {
+
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
+    }
+
+    res.json({
+      locationTracking: settings.locationTracking
+    });
+
+ 
+});
+
+export const updateLocationSettings = catchAsyncErrors(async (req, res) => {
+
+    const { gpsTrackingEnabled, restrictByLocation, allowedRadiusMeters } = req.body;
+
+    const updatedSettings = await Settings.findOneAndUpdate(
+      {},
+      {
+        locationTracking: {
+          gpsTrackingEnabled,
+          restrictByLocation,
+          allowedRadiusMeters,
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      message: 'Location settings updated successfully',
+      locationTracking: updatedSettings.locationTracking
+    });
+
+
+});
+
+
+
+export const getAttendanceRules =catchAsyncErrors( async (req, res , next) => {
+
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = await Settings.create({});
+    }
+
+    res.json({
+      attendanceRules: settings.attendanceRules
+    });
+
+});
+
+
+export const updateAttendanceRules = catchAsyncErrors(async (req, res) => {
+
+    const {
+      autoMarkAbsent,
+      autoAbsentAfterHours,
+      autoCheckout
+    } = req.body;
+
+    if (autoMarkAbsent && (!autoAbsentAfterHours || autoAbsentAfterHours <= 0)) {
+      return next ( new ErrorHandler("autoAbsentAfterHours must be > 0 if autoMarkAbsent is enabled." , 400));
+    }
+
+    const updatedSettings = await Settings.findOneAndUpdate(
+      {},
+      {
+        attendanceRules: {
+          autoMarkAbsent,
+          autoAbsentAfterHours,
+          autoCheckout
+        }
+      },
+      { new: true, upsert: true }
+    );
+
+    res.json({
+      message: "Attendance rules updated successfully",
+      attendanceRules: updatedSettings.attendanceRules
+    });
+
+});
+
+

@@ -4,11 +4,24 @@ import {
   approveDeleteRequest,
   approveUpdateRequest,
   getAllEmployeeCards,
+  getAttendanceRules,
+  getAttendanceSettings,
+  getGeneralSettings,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getLocationSettings,
+  getPreferences,
   getSinglePayslip,
+  getWeekendDays,
   loginUser,
   reviewLeave,
+  saveGeneralSettings,
+  updateAttendanceRules,
+  updateAttendanceSettings,
+  updateLocationSettings,
+  updatePreferences,
+  updateSystemDefaults,
+  updateWeekendDays,
 } from "../controllers/hr.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import {
@@ -117,7 +130,38 @@ router.get(
   getAllEmployeeCards
 );
 
+
 router.post("/Evaluation", authenticate, authorize(["hr"]), saveEvaluation);
+
+
+router.get("/getGeneralSettings", authenticate, authorize(["hr"]), getGeneralSettings)
+
+router.post('/save', authenticate, authorize(["hr"]), saveGeneralSettings);
+
+
+
+router.put('/system-defaults', authenticate, authorize(["hr"]), updateSystemDefaults);
+
+
+router.get('/preferences', authenticate, authorize(["hr"]), getPreferences);
+router.put('/preferences', authenticate, authorize(["hr"]), updatePreferences);
+
+
+router.get('/attendance-settings', authenticate, authorize(["hr"]), getAttendanceSettings);
+router.put('/attendance-settings', authenticate, authorize(["hr"]), updateAttendanceSettings);
+
+
+router.get('/weekend-days', authenticate, authorize(["hr"]), getWeekendDays);
+router.put('/weekend-days', authenticate, authorize(["hr"]), updateWeekendDays);
+
+
+router.get('/location-settings', authenticate, authorize(["hr"]), getLocationSettings);
+router.put('/location-settings',authenticate, authorize(["hr"]), updateLocationSettings);
+
+
+router.get('/attendance-rules',authenticate, authorize(["hr"]), getAttendanceRules);
+router.put('/attendance-rules',authenticate, authorize(["hr"]), updateAttendanceRules);
+
 
 export default router;
 

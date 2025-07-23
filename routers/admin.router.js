@@ -30,6 +30,19 @@ import {
   reviewLeave,
   setEmpIdConfig,
   updateEmpIdConfig,
+  getGeneralSettings,
+  saveGeneralSettings,
+  updateSystemDefaults,
+  getPreferences,
+  updatePreferences,
+  getAttendanceSettings,
+  updateAttendanceSettings,
+  getWeekendDays,
+  updateWeekendDays,
+  getLocationSettings,
+  updateLocationSettings,
+  getAttendanceRules,
+  updateAttendanceRules,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -230,5 +243,36 @@ router.put(
   updateEmpIdConfig
 )
 
+router.get("/getGeneralSettings", authenticate, authorize(["admin"]), getGeneralSettings)
+
+router.post('/save', authenticate, authorize(["admin"]), saveGeneralSettings);
+
+
+
+router.put('/system-defaults', authenticate, authorize(["admin"]), updateSystemDefaults);
+
+
+router.get('/preferences', authenticate, authorize(["admin"]), getPreferences);
+router.put('/preferences', authenticate, authorize(["admin"]), updatePreferences);
+
+
+router.get('/attendance-settings', authenticate, authorize(["admin"]), getAttendanceSettings);
+router.put('/attendance-settings', authenticate, authorize(["admin"]), updateAttendanceSettings);
+
+
+router.get('/weekend-days', authenticate, authorize(["admin"]), getWeekendDays);
+router.put('/weekend-days', authenticate, authorize(["admin"]), updateWeekendDays);
+
+
+router.get('/location-settings', authenticate, authorize(["admin"]), getLocationSettings);
+router.put('/location-settings',authenticate, authorize(["admin"]), updateLocationSettings);
+
+
+router.get('/attendance-rules',authenticate, authorize(["admin"]), getAttendanceRules);
+router.put('/attendance-rules',authenticate, authorize(["admin"]), updateAttendanceRules);
+
 
 export default router;
+
+
+

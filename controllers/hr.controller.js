@@ -736,6 +736,8 @@ export const updateAttendance = catchAsyncErrors(async (req, res, next) => {
 });
 
 
+
+
 export const getGeneralSettings = catchAsyncErrors(async (req, res, next) => {
   const settings = await Settings.findOne().lean();
   if (!settings) return next(new ErrorHandler('Settings not found', 404));
