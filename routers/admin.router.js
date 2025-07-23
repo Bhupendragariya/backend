@@ -11,17 +11,27 @@ import {
   deleteMeetingType,
   deletePosition,
   getAllDepartments,
+  getAllEmployeePerformance,
   getAllMeetingTypes,
   getAllPositions,
   getEmpIdConfig,
+  getEmployeePerformance,
   getInboxMessages,
   getLeavesWithEmployeeName,
+  getPerfMetricsConfig,
+  getReviewCycleConfig,
+  getStandardWorkingHour,
+  getTaskScoreConfig,
   getUserMeetings,
   loginUser,
   registerUser,
   reviewLeave,
+  reviewPerformance,
   setEmpIdConfig,
-  updateEmpIdConfig,
+  setPerfMetricsConfig,
+  setReviewCycleConfig,
+  setStandardWorkingHour,
+  setTaskScoreConfig,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -153,7 +163,7 @@ router.delete(
   deleteMeetingType
 )
 
-//settings
+//emp settings
 router.get(
   "/getEmpIdConfig",
   authenticate,
@@ -168,12 +178,82 @@ router.post(
   setEmpIdConfig
 )
 
-router.put(
-  "/updateEmpIdConfig",
+router.get(
+  "/getStandardWorkingHour",
   authenticate,
   authorize(["admin"]),
-  updateEmpIdConfig
+  getStandardWorkingHour
 )
 
+router.post(
+  "/setStandardWorkingHour",
+  authenticate,
+  authorize(["admin"]),
+  setStandardWorkingHour
+)
+
+//perf settings
+router.get(
+  "/getReviewCycleConfig",
+  authenticate,
+  authorize(["admin"]),
+  getReviewCycleConfig
+)
+
+router.post(
+  "/setReviewCycleConfig",
+  authenticate,
+  authorize(["admin"]),
+  setReviewCycleConfig
+)
+
+router.get(
+  "/getTaskScoreConfig",
+  authenticate,
+  authorize(["admin"]),
+  getTaskScoreConfig
+)
+
+router.post(
+  "/setTaskScoreConfig",
+  authenticate,
+  authorize(["admin"]),
+  setTaskScoreConfig
+)
+
+router.get(
+  "/getPerfMetricsConfig",
+  authenticate,
+  authorize(["admin"]),
+  getPerfMetricsConfig
+)
+
+router.post(
+  "/setPerfMetricsConfig",
+  authenticate,
+  authorize(["admin"]),
+  setPerfMetricsConfig
+)
+
+router.post(
+  "/reviewPerformance/:empId",
+  authenticate,
+  authorize(['admin']),
+  reviewPerformance
+)
+
+router.get(
+  "/getEmployeePerformance/:empId",
+  authenticate,
+  authorize(["admin"]),
+  getEmployeePerformance
+)
+
+router.get(
+  "/getAllEmployeePerformance/",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeePerformance
+)
 
 export default router;

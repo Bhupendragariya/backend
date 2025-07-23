@@ -17,7 +17,6 @@ import {
   getUnreadFeedbackCount,
   getUserMeetings,
   markFeedbackAsRead,
-  saveEvaluation,
 } from "../controllers/admin.controller.js";
 
 const router = Router();
@@ -100,6 +99,6 @@ router.get(
   getAllEmployeePerformance
 );
 
-router.post("/Evaluation", authenticate, authorize(["hr"]), saveEvaluation);
+// router.post("/Evaluation", authenticate, authorize(["hr"]), saveEvaluation);
 
 export default router;
