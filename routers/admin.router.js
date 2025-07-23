@@ -8,7 +8,7 @@ import {
   approveUpdateRequest,
   createMeeting,
   createLeaveByAdmin,
-  createMeeting,
+
   deleteDepartment,
   deleteMeetingType,
   deletePosition,
@@ -24,7 +24,6 @@ import {
   getUserMeetings,
   getSinglePayslip,
   getUnreadFeedbackCount,
-  getUserMeetings,
   loginUser,
   markFeedbackAsRead,
   registerUser,
@@ -186,19 +185,7 @@ router.delete(
   deletePosition
 )
 
-router.post(
-  "/addMeeting",
-  authenticate,
-  authorize(["admin"]),
-  createMeeting
-);
 
-router.get(
-  "/allMeetings",
-  authenticate,
-  authorize(["admin"]),
-  getUserMeetings
-);
 
 router.get(
   "/getAllMeetingTypes",

@@ -18,6 +18,7 @@ import MeetingType from "../models/meetingType.model.js";
 import EmpIdConfig from "../models/empIdConfig.model.js";
 import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
+import Attendance from "../models/attendance.model.js";
 
 //------auth related controllers------//
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
@@ -668,6 +669,17 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Position does not exist", 400));
   }
 
+  const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
+
+  const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
+  if (missingDocs.length > 0) {
+    return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
+  }
+
+
+
+
+  
   const user = await User.create({
     email,
     password: finalEmployeeId,
@@ -688,17 +700,6 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     accountNumber,
     ifscCode,
   })
-
-  //req.files={empPhoto:[{fieldname,originalname,encoding,mimetype,path(cloud),size,filename(cloud)}], empIdProof:[{}]}
-  //fields -> empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
-  // console.log(req.files);
-
-  const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
-
-  const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
-  if (missingDocs.length > 0) {
-    return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
-  }
 
   const documents = []
 
@@ -1121,5 +1122,7 @@ export const updateAttendance = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
 
 

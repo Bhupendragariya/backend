@@ -32,7 +32,26 @@ const attendanceSchema = new mongoose.Schema({
     default: 'Present',
   },
 
-   notes: { type: String }
+   notes: { type: String },
+
+
+     checkInBufferTime: {
+    type: Number,
+    default: 20, 
+  },
+  checkOutBufferTime: {
+    type: Number,
+    default: 20, 
+  },
+  lateMarkThreshold: {
+    type: Number,
+    default: 60, 
+  },
+  halfDayThreshold: {
+    type: Number,
+    default: 4, 
+  },
+
 
    
 });

@@ -13,6 +13,7 @@ const standardWorkingHourSchema = new mongoose.Schema({
   weeklyHours: {
     type: Number,
   },
+  
 })
 
 const StandardWorkingHour = mongoose.model("StandardWorkingHour", standardWorkingHourSchema);
