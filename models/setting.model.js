@@ -14,7 +14,7 @@ const settingsSchema = new mongoose.Schema({
     salaryCycle: String
   },
   preferences: {
-    appearance: { type: String, enum: ['Bright', 'Dark'], default: 'Bright' },
+    appearance: { type: String, enum: ['Bright', 'Dark'], default: 'Bright' },  
 
 
     notifications: {
@@ -22,6 +22,10 @@ const settingsSchema = new mongoose.Schema({
       sms: { type: Boolean, default: false }
     }
   },
+
+
+
+
 
     workConfig: {
     weekendDays: {
@@ -42,8 +46,15 @@ const settingsSchema = new mongoose.Schema({
     autoMarkAbsent: { type: Boolean, default: false },
     autoAbsentAfterHours: { type: Number, default: 2 }, 
     autoCheckout: { type: Boolean, default: false }
-  }
+  },
 
+
+  checkInOutRules: {
+  checkInBufferTime: { type: Number, default: 20 },
+  checkOutBufferTime: { type: Number, default: 20 },
+  lateMarkThreshold: { type: Number, default: 60 },
+  halfDayThreshold: { type: Number, default: 4 },
+},
   
 
 
