@@ -999,3 +999,142 @@ function numberToWords(num) {
  
   return "Fourteen Thousand Three Hundred Twenty rupees only"; 
 }
+
+
+
+
+const timeToMinutes = (timeStr) => {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+const calculateWorkingHours = (punchIn, punchOut) => {
+  if (!punchIn || !punchOut) return 0;
+  const inMinutes = timeToMinutes(punchIn);
+  const outMinutes = timeToMinutes(punchOut);
+  const diff = outMinutes - inMinutes;
+  return diff > 0 ? +(diff / 60).toFixed(2) : 0;
+};
+
+
+export const markAttendance = catchAsyncErrors(async (req, res, next) => {
+  const {
+    user,
+    date,
+    punchIn,
+    punchOut,
+    locationType,
+    notes,
+  } = req.body;
+
+  if (!user || !date) {
+    return next(new ErrorHandler("User and Date are required", 400));
+  }
+
+  // 1. Get settings
+  const settings = await Settings.findOne();
+  if (!settings || !settings.checkInOutRules) {
+    return next(new ErrorHandler("System settings not configured.", 500));
+  }
+
+  const {
+    checkInBufferTime,
+    checkOutBufferTime,
+    lateMarkThreshold,
+    halfDayThreshold,
+  } = settings.checkInOutRules;
+
+  // 2. Calculate working hours
+  const workingHours = calculateWorkingHours(punchIn, punchOut);
+
+  // 3. Determine status
+  let status = "Present";
+
+  const scheduledStartTime = 9 * 60; // 9:00 AM in minutes
+  const actualStart = punchIn ? timeToMinutes(punchIn) : null;
+
+  if (actualStart !== null && actualStart > scheduledStartTime + checkInBufferTime) {
+    const lateBy = actualStart - scheduledStartTime;
+    if (lateBy >= lateMarkThreshold) {
+      status = "Late";
+    }
+  }
+
+  if (workingHours < halfDayThreshold) {
+    status = "Half Day";
+  }
+
+  // 4. Upsert attendance
+  const attendanceDate = new Date(date).toISOString().split("T")[0];
+
+  let attendance = await Attendance.findOne({
+    user,
+    date: {
+      $gte: new Date(attendanceDate),
+      $lt: new Date(attendanceDate + "T23:59:59"),
+    },
+  });
+
+  if (!attendance) {
+    attendance = await Attendance.create({
+      user,
+      date: attendanceDate,
+      punchIn,
+      punchOut,
+      locationType,
+      workingHours,
+      status,
+      notes,
+    });
+  } else {
+    attendance.punchIn = punchIn ?? attendance.punchIn;
+    attendance.punchOut = punchOut ?? attendance.punchOut;
+    attendance.locationType = locationType ?? attendance.locationType;
+    attendance.notes = notes ?? attendance.notes;
+    attendance.workingHours = workingHours;
+    attendance.status = status;
+    await attendance.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Attendance marked successfully",
+    data: attendance,
+  });
+});
+
+
+
+
+
+
+
+
+export const logoutUser = catchAsyncErrors(async (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return next(new ErrorHandler("You're not logged in", 401));
+  }
+
+
+  res.cookie("token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    expires: new Date(0),
+  });
+
+
+  res.cookie("refreshToken", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    expires: new Date(0),
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "You have been logged out securely.",
+  });
+});

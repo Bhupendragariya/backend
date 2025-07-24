@@ -1260,3 +1260,94 @@ export const updateSettings = catchAsyncErrors(async (req, res, next) => {
 });
 
 
+
+
+
+
+
+export const updatePayrollSettings = catchAsyncErrors(async (req, res, next) => {
+  const updates = req.body;
+
+  if (!updates || Object.keys(updates).length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "No data provided to update."
+    });
+  }
+if (updates.salaryStructure) {
+  const { basicSalary, deductionPercentage, transportAllowancePercentage } = updates.salaryStructure;
+
+  if (typeof basicSalary !== "number" || basicSalary <= 0) {
+    return next(new ErrorHandler("Basic Salary must be a positive number", 400));
+  }
+  if (typeof deductionPercentage !== "number" || deductionPercentage < 0) {
+    return next(new ErrorHandler("Deduction percent must be a non-negative number", 400));
+  }
+  if (typeof transportAllowancePercentage !== "number" || transportAllowancePercentage < 0) {
+    return next(new ErrorHandler("Transport Allowance percent must be a non-negative number", 400));
+  }
+}
+
+
+  let settings = await Settings.findOne();
+  if (!settings) {
+    settings = new Settings(updates);
+  } else {
+  
+    for (const key of Object.keys(updates)) {
+      if (
+        updates[key] &&
+        typeof updates[key] === "object" &&
+        !Array.isArray(updates[key])
+      ) {
+        settings[key] = deepMerge(
+          settings[key] ? settings[key].toObject() || {} : {},
+          updates[key]
+        );
+      } else {
+        settings[key] = updates[key];
+      }
+    }
+  }
+
+  await settings.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Payroll settings updated successfully",
+    data: settings
+  });
+});
+
+
+
+
+
+export const logoutAdmin = catchAsyncErrors(async (req, res, next) => {
+  const token = req.cookies.token;
+
+  if (!token) {
+    return next(new ErrorHandler("You're not logged in", 401));
+  }
+
+
+  res.cookie("token", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    expires: new Date(0),
+  });
+
+
+  res.cookie("refreshToken", "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    expires: new Date(0),
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "You have been logged out securely.",
+  });
+});

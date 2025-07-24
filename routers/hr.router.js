@@ -13,8 +13,11 @@ import {
   getSinglePayslip,
 
   loginUser,
+  logoutHr,
   reviewLeave,
   saveGeneralSettings,
+
+  updatePayrollSettings,
 
   updateSettings,
 
@@ -137,6 +140,9 @@ router.patch('/save', authenticate, authorize(["hr"]), saveGeneralSettings);
 router.patch('/attendance-settings', authenticate, authorize(["hr"]), updateSettings);
 
 
+router.patch("/settings/payroll", authenticate, authorize(["hr"]), updatePayrollSettings);
+
+router.get("/logout", authenticate, authorize(["hr"]), logoutHr);
 
 export default router;
 

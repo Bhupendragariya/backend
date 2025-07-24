@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, getMyAttendance, getUserMeetings, generatePayslip } from "../controllers/employee.controller.js";
+import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, getMyAttendance, getUserMeetings, generatePayslip, markAttendance, logoutUser } from "../controllers/employee.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
 
@@ -42,6 +42,12 @@ router.post('/messages/send',  authenticate, authorize(["employee"]),  upload.si
 router.put("/messages/:id/read", authenticate, authorize(["employee"]), markMessageAsRead);
 
 router.get("/Payslip", authenticate, authorize(["employee"]), generatePayslip);
+
+router.post("/attendance",  authenticate, authorize(["employee"]),  markAttendance);
+
+
+
+router.get("/logout", authenticate, authorize(["employee"]), logoutUser);
 
 
 

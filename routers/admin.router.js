@@ -33,6 +33,8 @@ import {
   saveGeneralSettings,
   getSettings,
   updateSettings,
+  logoutAdmin,
+  updatePayrollSettings,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -241,6 +243,9 @@ router.patch('/save-settings', authenticate, authorize(["admin"]), saveGeneralSe
 router.patch('/attendance-settings', authenticate, authorize(["admin"]), updateSettings);
 
 
+router.patch("/settings/payroll", authenticate, authorize(["admin"]), updatePayrollSettings);
+
+router.get("/logout", authenticate, authorize(["admin"]), logoutAdmin);
 
 export default router;
 
