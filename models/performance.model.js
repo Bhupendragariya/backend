@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const performanceEvaluationSchema = new mongoose.Schema({
+const performanceSchema = new mongoose.Schema({
   employee: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Employee",
@@ -8,19 +8,24 @@ const performanceEvaluationSchema = new mongoose.Schema({
   },
   evaluator: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", 
+    ref: "User",
     required: true,
   },
-  scores: {
-    workQuality: { type: Number, required: true },
-    productivity: { type: Number, required: true },
-    reliability: { type: Number, required: true },
-    teamwork: { type: Number, required: true },
-    innovation: { type: Number, required: true },
+  scores: [{
+    metricName: { type: String }, // e.g., taskCompletionRate, qualityScore
+    score: { type: Number }
+  }],
+  notes: {
+    type: String,
+    default: "Excellent team player and consistently delivers high-quality work.",
   },
-  notes: { type: String },
-  performanceScore: { type: Number, required: true }, 
+  performanceScore: {
+    sumOfScores: { type: Number },
+    totalOfMaxScore: { type: Number },
+    percentageScore: { type: Number },
+    averageScore: { type: Number },
+  },
 }, { timestamps: true });
 
-const Performance = mongoose.model("Performance", performanceEvaluationSchema);
+const Performance = mongoose.model("Performance", performanceSchema);
 export default Performance;

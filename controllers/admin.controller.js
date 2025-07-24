@@ -16,6 +16,12 @@ import Department from "../models/department.model.js";
 import Position from "../models/position.model.js";
 import MeetingType from "../models/meetingType.model.js";
 import EmpIdConfig from "../models/empIdConfig.model.js";
+import ReviewCycleConfig from "../models/reviewCycleConfig.model.js";
+import TaskScoreConfig from "../models/taskScoreConfig.model.js";
+import PerfMetricsConfig from "../models/perfMetricsConfig.model.js";
+import StandardWorkingHour from "../models/standardWorkingHour.model.js";
+import { populate } from "dotenv";
+import Performance from "../models/performance.model.js";
 import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
 import Attendance from "../models/attendance.model.js";
@@ -541,75 +547,194 @@ export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
 
 
 //------performance related controllers------//
+// export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
+//   try {
 
 
 export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
   try {
 
-    const employees = await Employee.find();
+//     const employees = await Employee.find();
 
 
-    const results = await Promise.all(
-      employees.map(async (emp) => {
-        const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
-          .sort({ updatedAt: -1 })
-          .lean();
+//     const results = await Promise.all(
+//       employees.map(async (emp) => {
+//         const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
+//           .sort({ updatedAt: -1 })
+//           .lean();
 
-        return {
-          employeeName: emp.fullName,
-          position: emp.position,
-          performanceScore: evaluation ? evaluation.performanceScore : null,
-          scores: evaluation ? evaluation.scores : null,
-          notes: evaluation ? evaluation.notes : null,
-          lastUpdated: evaluation ? evaluation.updatedAt : null,
-          employeeId: emp._id,
-        };
-      })
-    );
+//         return {
+//           employeeName: emp.fullName,
+//           position: emp.position,
+//           performanceScore: evaluation ? evaluation.performanceScore : null,
+//           scores: evaluation ? evaluation.scores : null,
+//           notes: evaluation ? evaluation.notes : null,
+//           lastUpdated: evaluation ? evaluation.updatedAt : null,
+//           employeeId: emp._id,
+//         };
+//       })
+//     );
 
-    res.status(200).json({ success: true, data: results });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
-  }
-});
+//     res.status(200).json({ success: true, data: results });
+//   } catch (error) {
+//     return next(new ErrorHandler(error.message, 400));
+//   }
+// });
 
+// export const saveEvaluation = async (req, res, next) => {
+//   try {
+//     const { employeeId } = req.params;
+//     const evaluatorId = req.user.id;
+//     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
 export const saveEvaluation =  catchAsyncErrors(async (req, res, next) => {
   try {
     const { employeeId } = req.params;
     const evaluatorId = req.user.id;
     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
 
-    const performanceScore = (
-      (workQuality + productivity + reliability + teamwork + innovation) / 5
-    ).toFixed(2);
+//     const performanceScore = (
+//       (workQuality + productivity + reliability + teamwork + innovation) / 5
+//     ).toFixed(2);
 
 
-    let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
+//     let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
 
-    if (evaluation) {
+//     if (evaluation) {
 
-      evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
-      evaluation.notes = notes;
-      evaluation.performanceScore = performanceScore;
-      await evaluation.save();
-    } else {
+//       evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
+//       evaluation.notes = notes;
+//       evaluation.performanceScore = performanceScore;
+//       await evaluation.save();
+//     } else {
 
-      evaluation = await PerformanceEvaluation.create({
-        employee: employeeId,
-        evaluator: evaluatorId,
-        scores: { workQuality, productivity, reliability, teamwork, innovation },
-        notes,
-        performanceScore,
-      });
-    }
+//       evaluation = await PerformanceEvaluation.create({
+//         employee: employeeId,
+//         evaluator: evaluatorId,
+//         scores: { workQuality, productivity, reliability, teamwork, innovation },
+//         notes,
+//         performanceScore,
+//       });
+//     }
 
-    res.status(200).json({ success: true, evaluation });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
+//     res.status(200).json({ success: true, evaluation });
+//   } catch (error) {
+//     return next(new ErrorHandler(error.message, 400));
+//   }
+// };
+
+export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
+  const { empId } = req.params;
+  const loggedInUserId = req.user.id
+  const { scores, notes } = req.body; //scores=[{metricName, score}]
+
+  const employee = await Employee.findById(empId);
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
   }
+
+  const evaluator = await User.findById(loggedInUserId);
+  if (!evaluator || (evaluator.role !== 'admin' && evaluator.role !== 'hr')) {
+    return next(new ErrorHandler("You are not authorize to add performance review.Only Admin or HR can do that", 403));
+  }
+
+  if (!scores || !Array.isArray(scores) || scores.length === 0) {
+    return next(new ErrorHandler("Scores are required and should be an non-empty array", 400));
+  }
+
+  const taskScoreConfig = await TaskScoreConfig.findOne();
+  if (!taskScoreConfig) {
+    return next(new ErrorHandler("Task Score Config not found", 404));
+  }
+
+  const sumOfScores = scores.reduce((acc, scoreObj) => acc + scoreObj.score, 0) //3+4+5=12
+  const totalOfMaxScore = scores.length * taskScoreConfig.maxScore //3*5=15
+  const percentageScore = (sumOfScores / totalOfMaxScore) * 100;// (12/15)*100=80
+  const averageScore = sumOfScores / scores.length; //12/3=4
+
+  const performanceScore = {
+    sumOfScores,
+    totalOfMaxScore,
+    averageScore,
+    percentageScore
+  }
+
+  let performanceReview = await Performance.findOne({ employee: empId })
+
+  if (performanceReview) {
+    performanceReview.evaluator = evaluator._id;
+    performanceReview.scores = scores;
+    performanceReview.notes = notes ?? performanceReview.notes;
+    performanceReview.performanceScore = performanceScore
+    await performanceReview.save();
+  } else {
+    performanceReview = await Performance.create({
+      employee: empId,
+      evaluator: evaluator._id,
+      scores,
+      notes,
+      performanceScore
+    })
+  }
+
+  res.status(201).json({
+    success: true,
+    message: "Performance review submitted successfully",
+    minScorePerTask: taskScoreConfig.minScore,
+    maxScorePerTask: taskScoreConfig.maxScore,
+    performanceReview
+  })
+})
+
+export const getEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
+  const { empId } = req.params;
+
+  const employee = await Employee.findById(empId);
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
+  }
+
+  const performanceReview = await Performance.findOne({ employee: empId })
+  if (!performanceReview) {
+    return next(new ErrorHandler("Performance review not found", 404));
+  }
+
+  res.status(201).json({
+    success: true,
+    employee,
+    performanceReview
+  })
+})
+
+export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
+  const performances = await Performance.find()
+    // .populate('employee', 'fullName employeeId department position documents')
+    // .populate("employee.department", "name")
+    // .populate("employee.position", "name")
+    // .populate({path:'employee.documents',match:{type:'empPhoto'}, select:'fileUrl publicId fileMimeType'})    
+    .populate({
+      path: 'employee',
+      select: 'fullName employeeId department position',
+      populate: [
+        { path: 'department', select: 'name' },
+        { path: 'position', select: 'name' },
+        { path: 'documents', match: { type: 'empPhoto' }, select: 'type fileUrl publicId fileMimeType' }
+      ]
+    })
+
+  if (!performances || performances.length === 0) {
+    return next(new ErrorHandler("No performance reviews found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    performances
+  })
+})
+
 });
 
 
+//------employee related controllers------//
 //------add employee related controllers------//
 
 
@@ -865,14 +990,14 @@ export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
     success: true,
     positions
   });
-});
+})
 
 //------settings related controllers------//
 export const getEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
-  const empIdConfig = await EmpIdConfig.findOne();
+  let empIdConfig = await EmpIdConfig.findOne();
 
   if (!empIdConfig) {
-    return next(new ErrorHandler("Employee ID configuration not found", 404));
+    empIdConfig = await EmpIdConfig.create({});
   }
 
   res.status(200).json({
@@ -885,6 +1010,7 @@ export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
   const { autoGenerate, idPrefix, idNumberLength } = req.body;
 
   let empIdConfig = await EmpIdConfig.findOne();
+
   if (!empIdConfig) {
     empIdConfig = await EmpIdConfig.create({
       autoGenerate,
@@ -892,9 +1018,9 @@ export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
       idNumberLength
     });
   } else {
-    empIdConfig.autoGenerate = autoGenerate;
-    empIdConfig.idPrefix = idPrefix;
-    empIdConfig.idNumberLength = idNumberLength;
+    empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
+    empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
+    empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
     await empIdConfig.save();
   }
 
@@ -905,25 +1031,158 @@ export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
-export const updateEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
-  const empIdConfig = await EmpIdConfig.findOne();
-  if (!empIdConfig) {
-    return next(new ErrorHandler("Employee ID configuration not found", 404));
-  }
+export const getStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
+  let standardWorkingHours = await StandardWorkingHour.findOne();
 
-  const { autoGenerate, idPrefix, idNumberLength } = req.body;
-  empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
-  empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
-  empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
-  await empIdConfig.save();
+  if (!standardWorkingHours) {
+    standardWorkingHours = await StandardWorkingHour.create({});
+  }
 
   res.status(200).json({
     success: true,
-    message: "Employee ID configuration updated successfully",
-    empIdConfig
+    standardWorkingHours
   });
 })
 
+export const setStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
+  const { startTime, endTime, breakDurationInMin, weeklyHours } = req.body;
+
+  let standardWorkingHour = await StandardWorkingHour.findOne()
+
+  if (!standardWorkingHour) {
+    standardWorkingHour = await StandardWorkingHour.create({
+      startTime,
+      endTime,
+      breakDurationInMin,
+      weeklyHours
+    })
+  } else {
+    standardWorkingHour.startTime = startTime ?? standardWorkingHour.startTime;
+    standardWorkingHour.endTime = endTime ?? standardWorkingHour.endTime;
+    standardWorkingHour.breakDurationInMin = breakDurationInMin ?? standardWorkingHour.breakDurationInMin;
+    standardWorkingHour.weeklyHours = weeklyHours ?? standardWorkingHour.weeklyHours;
+    await standardWorkingHour.save()
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Standard Working Hour configuration set successfully",
+    standardWorkingHour
+  });
+})
+
+export const getReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
+  let reviewCycleConfig = await ReviewCycleConfig.findOne();
+
+  if (!reviewCycleConfig) {
+    reviewCycleConfig = await ReviewCycleConfig.create({});
+  }
+
+  res.status(200).json({
+    success: true,
+    reviewCycleConfig
+  });
+})
+
+export const setReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
+  const { reviewFrequency, reviewDayOfMonth, autoGenerateReviewForm } = req.body;
+
+  let reviewCycleConfig = await ReviewCycleConfig.findOne();
+
+  if (!reviewCycleConfig) {
+    reviewCycleConfig = await ReviewCycleConfig.create({
+      reviewFrequency,
+      reviewDayOfMonth,
+      autoGenerateReviewForm
+    });
+  }
+  else {
+    reviewCycleConfig.reviewFrequency = reviewFrequency ?? reviewCycleConfig.reviewFrequency;
+    reviewCycleConfig.reviewDayOfMonth = reviewDayOfMonth ?? reviewCycleConfig.reviewDayOfMonth;
+    reviewCycleConfig.autoGenerateReviewForm = autoGenerateReviewForm ?? reviewCycleConfig.autoGenerateReviewForm;
+    await reviewCycleConfig.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Review Cycle configuration set successfully",
+    reviewCycleConfig
+  });
+})
+
+export const getTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
+  let taskScoreConfig = await TaskScoreConfig.findOne();
+
+  if (!taskScoreConfig) {
+    taskScoreConfig = await TaskScoreConfig.create({});
+  }
+
+  res.status(200).json({
+    success: true,
+    taskScoreConfig
+  });
+})
+
+export const setTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
+  const { minScore, maxScore } = req.body;
+
+  let taskScoreConfig = await TaskScoreConfig.findOne();
+
+  if (!taskScoreConfig) {
+    taskScoreConfig = await TaskScoreConfig.create({
+      minScore,
+      maxScore,
+    });
+  }
+  else {
+    taskScoreConfig.minScore = minScore ?? taskScoreConfig.minScore;
+    taskScoreConfig.maxScore = maxScore ?? taskScoreConfig.maxScore;
+    await taskScoreConfig.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Task Score configuration set successfully",
+    taskScoreConfig
+  });
+})
+
+
+export const getPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
+  let perfMetricConfig = await PerfMetricsConfig.findOne();
+
+  if (!perfMetricConfig) {
+    perfMetricConfig = await PerfMetricsConfig.create({})
+  }
+
+  res.status(200).json({
+    success: true,
+    perfMetricConfig
+  });
+})
+
+export const setPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
+  const { metrics } = req.body; //[{name,fullName,enabled}]
+
+  if (!Array.isArray(metrics) || metrics.length === 0) {
+    return next(new ErrorHandler("Performance metrics must be a non-empty array", 400));
+  }
+
+  let perfMetricConfig = await PerfMetricsConfig.findOne();
+
+  if (!perfMetricConfig) {
+    perfMetricConfig = await PerfMetricsConfig.create({ metrics });
+  } else {
+    perfMetricConfig.metrics = metrics;
+    await perfMetricConfig.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Performance Metric configuration set successfully",
+    perfMetricConfig
+  });
+});
 
 
 
