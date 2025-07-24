@@ -34,8 +34,6 @@ const attendanceSchema = new mongoose.Schema({
 
    notes: { type: String },
 
-
-
    
 });
 
