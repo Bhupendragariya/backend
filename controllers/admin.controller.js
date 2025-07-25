@@ -112,51 +112,6 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
 
 
 
-//------documents related controllers------//
-// export const addEmployee = catchAsyncErrors(async (req, res, next) => {
-//   const { fullName, email, department, position, phone, ...rest } = req.body;
-
-//   try {
-//     const existing = await User.findOne({ email });
-//     if (existing) return next(new ErrorHandler("User already exists", 402));
-
-//     const password = "emp@123";
-//     const employeeId = `EMP${nanoid(6).toUpperCase()}`;
-
-//     const user = await User.create({
-//       email,
-//       password,
-//       role: "employee",
-//     });
-
-//     const profile = await Employee.create({
-//       user: user._id,
-//       employeeId,
-//       fullName,
-//       department,
-//       position,
-//       phone,
-//       ...rest,
-//     });
-
-
-//       await sendNotification({
-//       userId: user._id,
-//       title: "Welcome to the Team!",
-//       message: `Welcome aboard, ${fullName}! We're excited to have you join as a ${position}.`,
-//       type: "Employee",
-//       createdBy: req.user?.id || null, 
-//     });
-
-//     res.status(201).json({
-//       message: "Employee created by HR",
-//       user: user._id,
-//       profile,
-//     });
-//   } catch (error) {
-//     return next(new ErrorHandler(error.message, 500));
-//   }
-// });
 
 export const getLeavesWithEmployeeName = catchAsyncErrors(
   async (req, res, next) => {
@@ -547,80 +502,81 @@ export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
 
 
 //------performance related controllers------//
-// export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
-//   try {
 
 
-export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
+export const getAllEmployeePerformanceEvaluations = catchAsyncErrors(async (req, res, next) => {
   try {
 
-//     const employees = await Employee.find();
+    const employees = await Employee.find();
 
 
-//     const results = await Promise.all(
-//       employees.map(async (emp) => {
-//         const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
-//           .sort({ updatedAt: -1 })
-//           .lean();
+    const results = await Promise.all(
+      employees.map(async (emp) => {
+        const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
+          .sort({ updatedAt: -1 })
+          .lean();
 
-//         return {
-//           employeeName: emp.fullName,
-//           position: emp.position,
-//           performanceScore: evaluation ? evaluation.performanceScore : null,
-//           scores: evaluation ? evaluation.scores : null,
-//           notes: evaluation ? evaluation.notes : null,
-//           lastUpdated: evaluation ? evaluation.updatedAt : null,
-//           employeeId: emp._id,
-//         };
-//       })
-//     );
+        return {
+          employeeName: emp.fullName,
+          position: emp.position,
+          performanceScore: evaluation ? evaluation.performanceScore : null,
+          scores: evaluation ? evaluation.scores : null,
+          notes: evaluation ? evaluation.notes : null,
+          lastUpdated: evaluation ? evaluation.updatedAt : null,
+          employeeId: emp._id,
+        };
+      })
+    );
 
-//     res.status(200).json({ success: true, data: results });
-//   } catch (error) {
-//     return next(new ErrorHandler(error.message, 400));
-//   }
-// });
+    res.status(200).json({ success: true, data: results });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
 
-// export const saveEvaluation = async (req, res, next) => {
-//   try {
-//     const { employeeId } = req.params;
-//     const evaluatorId = req.user.id;
-//     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
-export const saveEvaluation =  catchAsyncErrors(async (req, res, next) => {
+
+
+
+
+export const saveEvaluation =  catchAsyncErrors( async (req, res, next) => {
   try {
     const { employeeId } = req.params;
-    const evaluatorId = req.user.id;
+    const evaluatorId = req.user.id; 
     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
 
-//     const performanceScore = (
-//       (workQuality + productivity + reliability + teamwork + innovation) / 5
-//     ).toFixed(2);
+    const performanceScore = (
+      (workQuality + productivity + reliability + teamwork + innovation) / 5
+    ).toFixed(2);
+
+   
+    let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId,  });
+
+    if (evaluation) {
+     
+      evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
+      evaluation.notes = notes;
+      evaluation.performanceScore = performanceScore;
+      await evaluation.save();
+    } else {
+  
+      evaluation = await PerformanceEvaluation.create({
+        employee: employeeId,
+        evaluator: evaluatorId,
+        scores: { workQuality, productivity, reliability, teamwork, innovation },
+        notes,
+        performanceScore,
+      });
+    }
+
+    res.status(200).json({ success: true, evaluation });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400)); 
+  }
+});
 
 
-//     let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
 
-//     if (evaluation) {
 
-//       evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
-//       evaluation.notes = notes;
-//       evaluation.performanceScore = performanceScore;
-//       await evaluation.save();
-//     } else {
-
-//       evaluation = await PerformanceEvaluation.create({
-//         employee: employeeId,
-//         evaluator: evaluatorId,
-//         scores: { workQuality, productivity, reliability, teamwork, innovation },
-//         notes,
-//         performanceScore,
-//       });
-//     }
-
-//     res.status(200).json({ success: true, evaluation });
-//   } catch (error) {
-//     return next(new ErrorHandler(error.message, 400));
-//   }
-// };
 
 export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
   const { empId } = req.params;
@@ -729,8 +685,6 @@ export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next)
     success: true,
     performances
   })
-})
-
 });
 
 

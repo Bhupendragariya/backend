@@ -36,7 +36,6 @@ import {
   reviewLeave,
   reviewPerformance,
   setEmpIdConfig,
-  updateEmpIdConfig,
   saveGeneralSettings,
   getSettings,
   updateSettings,
@@ -316,6 +315,29 @@ router.get(
   authorize(["admin"]),
   getAllEmployeePerformance
 )
+
+
+
+router.get("/getSettings", authenticate, authorize(["hr"]), getSettings)
+
+router.patch('/save', authenticate, authorize(["hr"]), saveGeneralSettings);
+
+router.patch('/attendance-settings', authenticate, authorize(["hr"]), updateSettings);
+
+
+router.patch("/settings/payroll", authenticate, authorize(["hr"]), updatePayrollSettings);
+
+router.get("/logout", authenticate, authorize(["hr"]), logoutAdmin);
+
+
+
+
+
+
+
+
+
+
 
 export default router;
 
