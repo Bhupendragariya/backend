@@ -15,6 +15,10 @@ import {
   loginUser,
   logoutHr,
   reviewLeave,
+  saveEvaluation,
+  saveGeneralSettings,
+  updatePayrollSettings,
+  updateSettings,
 } from "../controllers/hr.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import {

@@ -16,7 +16,6 @@ import {
   getAllEmployeePerformance,
   getAllFeedbackMessages,
   getAllDepartments,
-  getAllEmployeePerformance,
   getAllMeetingTypes,
   getAllPositions,
   getEmpIdConfig,
@@ -309,12 +308,6 @@ router.get(
   getEmployeePerformance
 )
 
-router.get(
-  "/getAllEmployeePerformance/",
-  authenticate,
-  authorize(["admin"]),
-  getAllEmployeePerformance
-)
 
 
 
