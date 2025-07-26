@@ -26,6 +26,46 @@ import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
 import Attendance from "../models/attendance.model.js";
 
+
+
+
+export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
+  const token = req.cookies?.refreshToken || req.body?.refreshToken;
+  if (!token) return next(new ErrorHandler("Refresh token missing", 401));
+
+
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+  } catch (err) {
+    return next(new ErrorHandler("Invalid or expired refresh token", 401));
+  }
+
+  const user = await User.findById(decoded.id).select("+refreshToken");
+  if (!user || user.refreshToken !== token) {
+    return next(new ErrorHandler("Refresh token not valid", 401));
+  }
+
+  const accessToken = user.generateAccessToken();
+  const newRefreshToken = user.generateRefreshToken();
+
+  user.refreshToken = newRefreshToken;
+  await user.save();
+
+  res.cookie("refreshToken", newRefreshToken, {
+    httpOnly: true,
+    sameSite: 'none',
+ 
+  });
+
+  res.status(200).json({
+    message: "Access token refreshed successfully",
+    accessToken,
+  });
+});
+
+
+
 //------auth related controllers------//
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
@@ -93,17 +133,13 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      sameSite: "Strict",
+      sameSite: 'none',
     });
 
     res.status(200).json({
       message: "Login successfully",
       accessToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role,
-      },
+      user,
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
@@ -1547,7 +1583,7 @@ export const logoutAdmin = catchAsyncErrors(async (req, res, next) => {
   res.cookie("token", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: 'none',
     expires: new Date(0),
   });
 
@@ -1555,7 +1591,7 @@ export const logoutAdmin = catchAsyncErrors(async (req, res, next) => {
   res.cookie("refreshToken", "", {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: 'none',
     expires: new Date(0),
   });
 

@@ -44,6 +44,7 @@ import {
   setReviewCycleConfig,
   setStandardWorkingHour,
   setTaskScoreConfig,
+  refreshAccessToken,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -55,12 +56,12 @@ const router = Router();
 
 router.post("/registerUser", registerUser);
 
-router.post("/loginUser", loginUser);
+router.post("/login", loginUser);
 
 
 router.post("/addEmployee",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   upload.fields([
     { name: 'empPhoto' }, { name: 'empIdProof' }, { name: 'emp10PassCert' }, { name: 'emp12PassCert' }, { name: 'empGradCert' }, { name: 'empExpCert' }
   ]),
@@ -69,35 +70,35 @@ router.post("/addEmployee",
 router.get(
   "/leave-detailed",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getLeavesWithEmployeeName
 );
 
 router.put(
   "/leave-approveLeave/:leaveId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   reviewLeave
 );
 
 router.put(
   "/approveUpdateDocument/:docId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   approveUpdateRequest
 );
 
 router.delete(
   "/approveDeleteDocument/:docId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   approveDeleteRequest
 );
 
 router.get(
   '/messages/inbox',
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getInboxMessages
 );
 
@@ -106,21 +107,21 @@ router.get(
 router.get(
   "/feedbackRead",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   markFeedbackAsRead
 );
 
 router.get(
   "/UnreadFeedbackCount",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getUnreadFeedbackCount
 );
 
 router.get(
   "/AllFeedbackMessages",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getAllFeedbackMessages
 );
 
@@ -128,74 +129,74 @@ router.get(
 router.get(
   "/getSinglePayslip",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getSinglePayslip
 );
 
 router.get(
   "/getAllEmployee",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getAllEmployeeCards
 );
 
-router.post("/Meeting", authenticate, authorize(["admin"]), createMeeting);
+router.post("/Meeting", authenticate, authorize(["Admin"]), createMeeting);
 
-router.get("/allMeetings", authenticate, authorize(["admin"]), getUserMeetings);
+router.get("/allMeetings", authenticate, authorize(["Admin"]), getUserMeetings);
 
 router.post(
-  "/admin-create",
+  "/Admin-create",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   createLeaveByAdmin
 );
 
 router.get(
   "/getEmployeePerformance",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getAllEmployeePerformance);
 
 
 router.get(
   "/getAllDepartments",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getAllDepartments
 );
 
 router.post(
   "/addDepartment",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   addDepartment
 )
 
 router.delete(
   "/deleteDepartment/:deptId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   deleteDepartment
 )
 
 router.get(
   "/getAllPositions",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getAllPositions
 )
 
 router.post(
   "/addPosition",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   addPosition
 )
 
 router.delete(
   "/deletePosition/:posId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   deletePosition
 )
 
@@ -204,21 +205,21 @@ router.delete(
 router.get(
   "/getAllMeetingTypes",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getAllMeetingTypes
 )
 
 router.post(
   "/addMeetingType",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   addMeetingType,
 )
 
 router.delete(
   "/deleteMeetingType/:typeId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   deleteMeetingType
 )
 
@@ -226,28 +227,28 @@ router.delete(
 router.get(
   "/getEmpIdConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getEmpIdConfig
 )
 
 router.post(
   "/setEmpIdConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   setEmpIdConfig
 )
 
 router.get(
   "/getStandardWorkingHour",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getStandardWorkingHour
 )
 
 router.post(
   "/setStandardWorkingHour",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   setStandardWorkingHour
 )
 
@@ -255,72 +256,74 @@ router.post(
 router.get(
   "/getReviewCycleConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getReviewCycleConfig
 )
 
 router.post(
   "/setReviewCycleConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   setReviewCycleConfig
 )
 
 router.get(
   "/getTaskScoreConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getTaskScoreConfig
 )
 
 router.post(
   "/setTaskScoreConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   setTaskScoreConfig
 )
 
 router.get(
   "/getPerfMetricsConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getPerfMetricsConfig
 )
 
 router.post(
   "/setPerfMetricsConfig",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   setPerfMetricsConfig
 )
 
 router.post(
   "/reviewPerformance/:empId",
   authenticate,
-  authorize(['admin']),
+  authorize(['Admin']),
   reviewPerformance
 )
 
 router.get(
   "/getEmployeePerformance/:empId",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
   getEmployeePerformance
 )
 
 
 
 
-router.get("/getSettings", authenticate, authorize(["hr"]), getSettings)
+router.get("/getSettings", authenticate, authorize(["Admin"]), getSettings)
 
-router.patch('/save', authenticate, authorize(["hr"]), saveGeneralSettings);
+router.patch('/save', authenticate, authorize(["Admin"]), saveGeneralSettings);
 
-router.patch('/attendance-settings', authenticate, authorize(["hr"]), updateSettings);
+router.patch('/attendance-settings', authenticate, authorize(["Admin"]), updateSettings);
 
 
-router.patch("/settings/payroll", authenticate, authorize(["hr"]), updatePayrollSettings);
+router.patch("/settings/payroll", authenticate, authorize(["Admin"]), updatePayrollSettings);
 
-router.get("/logout", authenticate, authorize(["hr"]), logoutAdmin);
+router.get("/refresh", authenticate, authorize(["Admin"]), refreshAccessToken);
+
+router.get("/logout", authenticate, authorize(["Admin"]), logoutAdmin);
 
 
 

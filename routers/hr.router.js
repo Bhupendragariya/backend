@@ -14,6 +14,7 @@ import {
 
   loginUser,
   logoutHr,
+  refreshAccessToken,
   reviewLeave,
   saveEvaluation,
   saveGeneralSettings,
@@ -35,79 +36,79 @@ const router = Router();
 
 router.post("/loginUser", loginUser);
 
-router.post("/addEmployee", authenticate, authorize(["hr"]), addEmployee);
+router.post("/addEmployee", authenticate, authorize(["HR"]), addEmployee);
 
 router.get(
   "/leave-detailed",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getLeavesWithEmployeeName
 );
 
 router.put(
   "/leave-approveLeave/:leaveId",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   reviewLeave
 );
 
 router.put(
   "/approveUpdateDocument/:docId",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   approveUpdateRequest
 );
 
 router.delete(
   "/approveDeleteDocument/:docId",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   approveDeleteRequest
 );
 
 router.get(
   "/messages/inbox",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getInboxMessages
 );
 
 router.get(
   "/feedbackRead",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   markFeedbackAsRead
 );
 
 router.get(
   "/UnreadFeedbackCount",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getUnreadFeedbackCount
 );
 
 router.get(
   "/AllFeedbackMessages",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getAllFeedbackMessages
 );
 
-router.post("/addMeeting", authenticate, authorize(["hr"]), createMeeting);
+router.post("/addMeeting", authenticate, authorize(["HR"]), createMeeting);
 
-router.get("/allMeetings", authenticate, authorize(["hr"]), getUserMeetings);
+router.get("/allMeetings", authenticate, authorize(["HR"]), getUserMeetings);
 
 router.post(
   "/admin-create",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   createLeaveByAdmin
 );
 
 router.get(
   "/getEmployeePerformance",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getAllEmployeePerformance
 );
 
@@ -115,32 +116,33 @@ router.get(
 router.get(
   "/getSinglePayslip",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getSinglePayslip
 );
 
 router.get(
   "/getAllEmployee",
   authenticate,
-  authorize(["hr"]),
+  authorize(["HR"]),
   getAllEmployeeCards
 );
 
 
-router.post("/Evaluation", authenticate, authorize(["hr"]), saveEvaluation);
+router.post("/Evaluation", authenticate, authorize(["HR"]), saveEvaluation);
 
 
-router.get("/getSettings", authenticate, authorize(["hr"]), getSettings)
+router.get("/getSettings", authenticate, authorize(["HR"]), getSettings)
 
-router.patch('/save', authenticate, authorize(["hr"]), saveGeneralSettings);
+router.patch('/save', authenticate, authorize(["HR"]), saveGeneralSettings);
 
-router.patch('/attendance-settings', authenticate, authorize(["hr"]), updateSettings);
+router.patch('/attendance-settings', authenticate, authorize(["HR"]), updateSettings);
 
 
-router.patch("/settings/payroll", authenticate, authorize(["hr"]), updatePayrollSettings);
+router.patch("/settings/payroll", authenticate, authorize(["HR"]), updatePayrollSettings);
 
-router.get("/logout", authenticate, authorize(["hr"]), logoutHr);
+router.get("/logout", authenticate, authorize(["HR"]), logoutHr);
 
+router.patch("/refresh", authenticate, authorize(["HR"]), refreshAccessToken);
 
 
 

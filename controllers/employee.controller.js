@@ -54,7 +54,7 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
 
     res.cookie(cookieName, newRefreshToken, {
       httpOnly: true,
-      sameSite: "Strict",
+      sameSite: 'none',
     });
 
     res.status(200).json({
@@ -196,12 +196,12 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
-      sameSite: "Strict",
+      sameSite: 'none',
     });
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
-      sameSite: "Strict",
+      sameSite: 'none',
     });
 
     res.status(200).json({
@@ -1120,16 +1120,14 @@ export const logoutUser = catchAsyncErrors(async (req, res, next) => {
 
   res.cookie("token", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: 'none',
     expires: new Date(0),
   });
 
 
   res.cookie("refreshToken", "", {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: 'none',
     expires: new Date(0),
   });
 
@@ -1138,3 +1136,5 @@ export const logoutUser = catchAsyncErrors(async (req, res, next) => {
     message: "You have been logged out securely.",
   });
 });
+
+
