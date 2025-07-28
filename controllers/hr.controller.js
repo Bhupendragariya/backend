@@ -1,4 +1,4 @@
-
+import jwt from "jsonwebtoken";
 import { nanoid } from "nanoid";
 import User from "../models/user.model.js";
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";

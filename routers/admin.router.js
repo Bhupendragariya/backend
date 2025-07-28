@@ -145,7 +145,7 @@ router.post("/Meeting", authenticate, authorize(["Admin"]), createMeeting);
 router.get("/allMeetings", authenticate, authorize(["Admin"]), getUserMeetings);
 
 router.post(
-  "/Admin-create",
+  "/createLeave",
   authenticate,
   authorize(["Admin"]),
   createLeaveByAdmin
@@ -321,7 +321,9 @@ router.patch('/attendance-settings', authenticate, authorize(["Admin"]), updateS
 
 router.patch("/settings/payroll", authenticate, authorize(["Admin"]), updatePayrollSettings);
 
-router.get("/refresh", authenticate, authorize(["Admin"]), refreshAccessToken);
+router.get("/refresh",  refreshAccessToken);
+
+
 
 router.get("/logout", authenticate, authorize(["Admin"]), logoutAdmin);
 

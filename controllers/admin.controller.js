@@ -25,14 +25,17 @@ import Performance from "../models/performance.model.js";
 import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
 import Attendance from "../models/attendance.model.js";
+import jwt from "jsonwebtoken";
 
 
 
 
 export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
-  const token = req.cookies?.refreshToken || req.body?.refreshToken;
-  if (!token) return next(new ErrorHandler("Refresh token missing", 401));
+  const token = req.cookies.refreshToken;
 
+  if (!token) {
+    return next(new ErrorHandler("Refresh token missing", 401));
+  }
 
   let decoded;
   try {
@@ -41,32 +44,48 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Invalid or expired refresh token", 401));
   }
 
+
+  
   const user = await User.findById(decoded.id).select("+refreshToken");
-  if (!user || user.refreshToken !== token) {
-    return next(new ErrorHandler("Refresh token not valid", 401));
+
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
   }
 
-  const accessToken = user.generateAccessToken();
-  const newRefreshToken = user.generateRefreshToken();
 
-  user.refreshToken = newRefreshToken;
-  await user.save();
+  if (user.refreshToken !== token) {
+    return next(new ErrorHandler("Refresh token mismatch", 402));
+  };
+
+   console.log("mis mach", token);
+    console.log("mis mach", user.refreshToken);
+
+
+ const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user.id);
+
+
+
 
   res.cookie("refreshToken", newRefreshToken, {
     httpOnly: true,
-    sameSite: 'none',
- 
+    sameSite: "Lax",
+    maxAge: 7 * 24 * 60 * 60 * 1000, 
   });
 
   res.status(200).json({
-    message: "Access token refreshed successfully",
+    message: "Access token refreshed",
     accessToken,
+    user
   });
 });
 
 
 
+
 //------auth related controllers------//
+
+
+
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
@@ -116,6 +135,7 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
     if (!user) {
       return next(new ErrorHandler(" Invalid user and password ", 400));
     }
+    
 
     const isPasswordMatched = await user.comparePassword(password);
 
@@ -130,10 +150,16 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
     const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
       user._id
     );
+   
+
+    user.refreshToken = refreshToken;
+  await user.save({ validateBeforeSave: false });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
+      secure: true,
       sameSite: 'none',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     res.status(200).json({
@@ -292,6 +318,8 @@ export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
 
 
 //------message related controllers------//
+
+
 export const getInboxMessages = async (req, res) => {
   try {
     const inbox = await Message.find({ recipient: req.user.id })
@@ -305,7 +333,10 @@ export const getInboxMessages = async (req, res) => {
 };
 
 
+
 //------feedback related controllers------//
+
+
 export const markFeedbackAsRead = catchAsyncErrors(async (req, res, next) => {
   try {
     const feedback = await Feedback.findById(req.params.id);
@@ -352,6 +383,8 @@ export const getAllFeedbackMessages = catchAsyncErrors(async (req, res, next) =>
 
 
 //------meeting related controllers------//
+
+
 export const createMeeting = catchAsyncErrors(async (req, res, next) => {
   try {
     const { name, type, date, time, description } = req.body;
@@ -487,7 +520,7 @@ export const getAllMeetingTypes = catchAsyncErrors(async (req, res, next) => {
 
 export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
   const {
-    employeeId,
+    name,
     leaveType,
     startDate,
     endDate,
@@ -496,12 +529,12 @@ export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
   } = req.body;
   try {
 
-    if (!employeeId || !leaveType || !startDate || !endDate || !reason) {
+    if (!name || !leaveType || !startDate || !endDate || !reason) {
       return next(new ErrorHandler("Please fill all required fields", 400));
     }
 
 
-    const employee = await User.findById(employeeId);
+    const employee = await Employee.findOne({ name });
     if (!employee) {
       return next(new ErrorHandler("Employee not found", 404));
     }
@@ -513,7 +546,7 @@ export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
     };
 
     const leave = await Leave.create({
-      user: employeeId,
+      user: name,
       leaveType,
       startDate: toDate(startDate),
       endDate: toDate(endDate),
@@ -731,22 +764,30 @@ export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next)
 
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
-    fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
-    //bank details
+    fullName, employeeId, email, phone, emgContactName, emergencyContact, joiningDate, department, position, address, permanentAddress, bio,
     bankName, accountNumber, ifscCode,     
-    //salary details
+   
     basic, salaryCycle, allowances, deductions, netSalary
   } = req.body
 
+  
+  console.log({
+  fullName, email, contactNo, emgContactName, emergencyContact,
+  joiningDate, department, position, address, permanentAddress,
+  bankName, accountNumber, ifscCode,
+  basic, salaryCycle, allowances, netSalary
+});
   //bio and deductions are optional
-  if (
-    !fullName || !email || !contactNo || !emgContactName || !emgContactNo ||
-    !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
-    !bankName || !accountNumber || !ifscCode ||
-    !basic || !salaryCycle || !allowances || !netSalary
-  ) {
+ if  (
+  !fullName || !email || !contactNo || !emgContactName || !emergencyContact ||
+  !joiningDate || !department || !position || !address || !permanentAddress ||
+  !bankName || !accountNumber || !ifscCode ||
+  !basic || !salaryCycle || !allowances || !netSalary
+){
     return next(new ErrorHandler("Please provide all required fields.", 400));
   }
+
+
 
   //emp id config
   const empIdConfig = await EmpIdConfig.findOne();
@@ -786,6 +827,8 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
 
   const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
 
+  console.log(requiredDocTypes)
+
   const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
   if (missingDocs.length > 0) {
     return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
@@ -794,11 +837,12 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
 
 
 
+
   
   const user = await User.create({
     email,
     password: finalEmployeeId,
-    role: 'employee'
+    role: 'Employee'
   })
 
   const salary = await Salary.create({
@@ -843,14 +887,14 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     contactNo,
     emergencyContact: {
       name: emgContactName,
-      phone: emgContactNo
+      phone: emergencyContact
     },
     department: existingDepartment._id,
     position: existingPosition._id,
-    currentAddress,
+    address,
     permanentAddress,
     bio,
-    joinedOn,
+    joiningDate,
     documents,
     salaryDetails: [salary._id],
     bankDetails: bankAccount._id,

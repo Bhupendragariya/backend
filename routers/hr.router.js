@@ -99,7 +99,7 @@ router.post("/addMeeting", authenticate, authorize(["HR"]), createMeeting);
 router.get("/allMeetings", authenticate, authorize(["HR"]), getUserMeetings);
 
 router.post(
-  "/admin-create",
+  "/createLeave",
   authenticate,
   authorize(["HR"]),
   createLeaveByAdmin

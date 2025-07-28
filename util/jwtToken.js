@@ -2,10 +2,10 @@
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
 import User from "../models/user.model.js";
 
-export const generateAccessAndRefreshTokens = 
-  async (userId) => {
+export const generateAccessAndRefreshTokens = async (userId) => {
     try {
       const user = await User.findById(userId);
+      
 
       if (!user) {
         throw new ErrorHandler("User not found", 404);
@@ -14,6 +14,9 @@ export const generateAccessAndRefreshTokens =
 
       const accessToken = user.generateAccessToken();
       const refreshToken = user.generateRefreshToken();
+
+
+
 
       user.refreshToken = refreshToken;
       await user.save({ validateBeforeSave: false });
