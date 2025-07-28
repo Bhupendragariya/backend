@@ -12,46 +12,38 @@ const employeeSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active'
+    },
     fullName: {
       type: String,
       required: true,
     },
-
+    fatherName: {
+      type: String,
+    },
     contactNo: {
       type: Number,
       required: true,
     },
-
     emergencyContact: {
       name: String,
       phone: Number,
     },
-
-    // fatherName: {
-    //   type: String,
-    // },
-
     dob: {
       type: Date,
     },
-
     gender: {
       type: String,
+      required: true,
       enum: ["male", "female", "other", "prefer not to say"],
-    },
-
-    department: {    //hr,design,it/development,marketing,sales
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
-    },
-
-    position: {      //web developer,hr manager,data analyst,ui/ux designer,graphic designer,intern
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Position",
+      default: 'prefer not to say'
     },
     joinedOn: {
       type: Date,
+      required: true,
       default: Date.now,
     },
     currentAddress: {
@@ -62,13 +54,28 @@ const employeeSchema = new mongoose.Schema(
     },
     pincode: {
       type: Number,
+      default: 249201
     },
     city: {
       type: String,
+      default: 'Dehradun'
     },
     state: {
       type: String,
+      default: 'Uttarakhand'
     },
+
+    department: {    //hr,design,it/development,marketing,sales
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Department",
+      required: true,
+    },
+    position: {      //web developer,hr manager,data analyst,ui/ux designer,graphic designer,intern
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Position",
+      required: true,
+    },
+
     documents: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Document",
@@ -79,19 +86,15 @@ const employeeSchema = new mongoose.Schema(
       ref: "Leave",
     }],
 
-
     salaryDetails: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Salary"
     }],
 
-
     bankDetails: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "BankAccount"
     },
-
-
   },
   { timestamps: true }
 );

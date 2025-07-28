@@ -7,7 +7,7 @@ import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 import { nanoid } from "nanoid";
 import { sendNotification } from "../util/notification.js";
 import cloudinary from "../config/cloudinary.js";
-import Document from "../models/document.model.js";
+import Document, { DOCUMENT_TYPE_ENUM } from "../models/document.model.js";
 import Feedback from "../models/feedback.model.js";
 import Meeting from "../models/meeting.model.js";
 import Salary from "../models/salary.model.js";
@@ -174,145 +174,119 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
 
 
 
-
-export const getLeavesWithEmployeeName = catchAsyncErrors(
-  async (req, res, next) => {
-    const leaves = await Leave.find().populate("user", "email role").lean();
-
-    const enrichedLeaves = await Promise.all(
-      leaves.map(async (leave) => {
-        const employee = await Employee.findOne({
-          user: leave.user._id,
-        }).select("fullName");
-        return {
-          ...leave,
-          fullName: employee?.fullName || "N/A",
-        };
-      })
-    );
-
-    res.status(200).json({
-      success: true,
-      count: enrichedLeaves.length,
-      leaves: enrichedLeaves,
-    });
-  }
-);
-
-export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
-  const { leaveId } = req.params;
-  const userId = req.user.id;
-  const { status } = req.body;
-
-  const allowedStatuses = ["Approved", "Rejected"];
-  if (!allowedStatuses.includes(status)) {
-    return next(
-      new ErrorHandler(
-        `Invalid status. Allowed values: ${allowedStatuses.join(", ")}`,
-        400
-      )
-    );
-  }
-
-  const leave = await Leave.findById(leaveId);
-  if (!leave) {
-    return next(new ErrorHandler("Leave request not found", 404));
-  }
-
-  if (leave.status !== "Pending") {
-    return next(new ErrorHandler("Leave request is already reviewed", 400));
-  }
-
-  leave.status = status;
-  leave.reviewedBy = userId;
-  leave.reviewedAt = new Date();
-
-  await leave.save();
-
-  await sendNotification({
-    userId: leave.user.id,
-    title: "Leave Request Update",
-    message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${leave.status
-      }.`,
-    type: "Leave",
-    createdBy: req.user.id,
-  });
-
-  res.status(200).json({
-    success: true,
-    message: `Leave request ${status.toLowerCase()} successfully`,
-    leave,
-  });
-});
-
-
-export const approveUpdateRequest = catchAsyncErrors(async (req, res, next) => {
+//------documents related controllers------//
+export const approveOrRejectUpdateRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
+  const { action } = req.body; //action=approve/reject
+
+  if (!['approve', 'reject'].includes(action)) {
+    return next(new ErrorHandler("Invalid action. Must be either 'approve' or 'reject'", 400));
+  }
 
   const document = await Document.findById(docId);
   if (!document || document.status !== 'pending-update') {
     return next(new ErrorHandler("No pending update request found", 404));
   }
 
- 
-  if (document.publicId) {
-    await cloudinary.uploader.destroy(document.publicId);
-  }
-
   const requestedChanges = document.requestedChanges;
 
-  document.type = requestedChanges.type;
-  document.fileUrl = requestedChanges.fileUrl;
-  document.publicId = requestedChanges.publicId;
-  document.fileMimeType = requestedChanges.fileMimeType;
-  document.status = 'approved';
+  if (action === 'approve') {
+    // Delete old Cloudinary file
+    if (document.publicId) {
+      await cloudinary.uploader.destroy(document.publicId);
+    }
 
+    // Apply requested changes
+    document.type = requestedChanges.type;
+    document.fileUrl = requestedChanges.fileUrl;
+    document.publicId = requestedChanges.publicId;
+    document.fileMimeType = requestedChanges.fileMimeType;
+    document.status = 'approved';
+    document.reasonForRequest = '';
+    document.requestedChanges = undefined;
+
+    await document.save();
+
+    // await sendNotification({
+    //   userId: document.user.id,
+    //   title: "Your Document Request",
+    //   message: `Your document request was submitted successfully with status: ${document.status}.`,
+    //   type: "document",
+    //   createdBy: req.user.id,
+    // });
+
+    return res.status(200).json({
+      success: true,
+      message: "Document update request approved",
+      document
+    })
+  }
+
+  //if action === 'reject'
+  //delele new req file from cloudinary
+  if (requestedChanges.publicId) {
+    await cloudinary.uploader.destroy(requestedChanges.publicId)
+  }
+
+  document.status = 'rejected'
+  document.reasonForRequest = '';
+  document.requestedChanges = undefined;
 
   await document.save();
 
-  await sendNotification({
-    userId: document.user.id,
-    title: "Your Document Request",
-    message: `Your document request was submitted successfully with status: ${document.status}.`,
-    type: "document",
-    createdBy: req.user.id,
-  });
-
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
-    message: "Document update approved",
-    document
-  });
-});
+    message: "Document update request rejected",
+    document,
+  })
+})
 
-export const approveDeleteRequest = catchAsyncErrors(async (req, res, next) => {
+export const approveOrRejectDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
+  const { action } = req.body;
+
+  if (!['approve', 'reject'].includes(action)) {
+    return next(new ErrorHandler("Invalid action. Must be either 'approve' or 'reject'", 400));
+  }
 
   const document = await Document.findById(docId);
   if (!document || document.status !== 'pending-delete') {
     return next(new ErrorHandler("No pending delete request found", 404));
   }
 
-  // Delete doc from Cloudinary
-  if (document.publicId) {
-    await cloudinary.uploader.destroy(document.publicId);
+  if (action === 'approve') {
+    // Delete doc from Cloudinary
+    if (document.publicId) {
+      await cloudinary.uploader.destroy(document.publicId);
+    }
+
+    // Remove from employee data
+    await Employee.findOneAndUpdate(
+      { user: document.user },
+      { $pull: { documents: docId } }
+    )
+
+    // Remove doc from doc data
+    await Document.findByIdAndDelete(docId);
+
+    return res.status(200).json({
+      success: true,
+      message: "Document delete request approved"
+    })
   }
 
-  // Remove doc from doc data
-  await Document.findByIdAndDelete(docId);
+  //if action === 'reject'
+  document.status = 'approved';
+  document.reasonForRequest = '';
+  await document.save();
 
-  // Remove from employee data
-  await Employee.findByIdAndUpdate(document.user, {
-    $pull: { documents: docId }
-  });
-
-
-
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
-    message: "Document delete approved"
+    message: "Document delete request rejected",
+    document
   });
-});
+
+})
 
 
 
@@ -764,9 +738,10 @@ export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next)
 
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
-    fullName, employeeId, email, phone, emgContactName, emergencyContact, joiningDate, department, position, address, permanentAddress, bio,
-    bankName, accountNumber, ifscCode,     
-   
+    fullName, fatherName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
+    //bank details
+    bankName, accountNumber, ifscCode,
+    //salary details
     basic, salaryCycle, allowances, deductions, netSalary
   } = req.body
 
@@ -778,12 +753,12 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   basic, salaryCycle, allowances, netSalary
 });
   //bio and deductions are optional
- if  (
-  !fullName || !email || !contactNo || !emgContactName || !emergencyContact ||
-  !joiningDate || !department || !position || !address || !permanentAddress ||
-  !bankName || !accountNumber || !ifscCode ||
-  !basic || !salaryCycle || !allowances || !netSalary
-){
+  if (
+    !fullName || !fatherName || !email || !contactNo || !emgContactName || !emgContactNo ||
+    !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
+    !bankName || !accountNumber || !ifscCode ||
+    !basic || !salaryCycle || !allowances || !netSalary
+  ) {
     return next(new ErrorHandler("Please provide all required fields.", 400));
   }
 
@@ -860,23 +835,40 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     ifscCode,
   })
 
+  //req.files={empPhoto:[{fieldname,originalname,encoding,mimetype,path(cloud),size,filename(cloud)}], empIdProof:[{}]}
+  //fields -> empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
+  // console.log(req.files);
+
+  // const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
+
+  // const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
+  // if (missingDocs.length > 0) {
+  //   return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
+  // }
+
   const documents = []
 
-  for (const field in req.files) { //req.files obj
-    for (let file of req.files[field]) { //field arr
-      const { path, filename, mimetype } = file
-      if (!path || !filename || !mimetype) {
-        return next(new ErrorHandler("Invalid file upload", 400));
+  if (req.files) {
+    for (const field in req.files) { //req.files obj
+      if (!DOCUMENT_TYPE_ENUM.includes(field)) {
+        return next(new ErrorHandler(`${field} is not a valid document type`, 400));
       }
 
-      const document = await Document.create({
-        user: user._id,
-        type: field,
-        fileUrl: path,
-        publicId: filename,
-        fileMimeType: mimetype,
-      })
-      documents.push(document._id)
+      for (let file of req.files[field]) { //field arr
+        const { path, filename, mimetype } = file
+        if (!path || !filename || !mimetype) {
+          return next(new ErrorHandler("Invalid file upload", 400));
+        }
+
+        const document = await Document.create({
+          user: user._id,
+          type: field,
+          fileUrl: path,
+          publicId: filename,
+          fileMimeType: mimetype,
+        })
+        documents.push(document._id)
+      }
     }
   }
 

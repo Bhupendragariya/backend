@@ -13,6 +13,8 @@ import sendEmail from '../util/sendEmail.js';
 import fs from 'fs';
 import Message from "../models/message.model.js";
 import Feedback from "../models/feedback.model.js";
+import Department from "../models/department.model.js";
+import Position from "../models/position.model.js";
 import Salary from "../models/salary.model.js";
 import jwt from "jsonwebtoken";
 
@@ -68,7 +70,6 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-
 export const getEmployeeDashboard = catchAsyncErrors(async (req, res, next) => {
 
 
@@ -98,7 +99,59 @@ export const getEmployeeDashboard = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
+  const { email, password, role } = req.body;
 
+  try {
+    if (!email || !password || !role) {
+      return next(new ErrorHandler("please provide email and password", 400));
+    }
+
+    const user = await User.findOne({ email }).select("+password");
+
+    if (!user) {
+      return next(new ErrorHandler("invalid user and password", 400));
+    }
+
+    const isPasswordMatched = await user.comparePassword(password);
+
+    if (!isPasswordMatched) {
+      return next(new ErrorHandler(" Invalid user and password ", 400));
+    }
+
+    if (user.role !== role) {
+      return next(new ErrorHandler("Unauthorized role", 403));
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+      user._id
+    );
+
+    const employee = await Employee.findOne({ user: user._id });
+    if (!employee) {
+      return next(new ErrorHandler("Employee profile not found", 404));
+    }
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "Strict",
+    });
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      sameSite: "Strict",
+    });
+
+    res.status(200).json({
+      message: "Login successfully",
+      accessToken,
+
+      employee,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
 
 export const applyLeave = catchAsyncErrors(async (req, res, next) => {
   const { leaveType, startDate, endDate, reason, comment } = req.body;
@@ -217,6 +270,7 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
 });
 
 
+//notifaction  messsagess like red unread 
 
 export const getNotifications = catchAsyncErrors(async (req, res, next) => {
 
@@ -232,8 +286,6 @@ export const getNotifications = catchAsyncErrors(async (req, res, next) => {
     notifications,
   });
 });
-
-
 
 export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
 
@@ -253,36 +305,36 @@ export const getUnreadNotifications = catchAsyncErrors(async (req, res, next) =>
   });
 });
 
-
-
 export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) => {
   const { id } = req.params;
 
-try {
-   if (!req.user || !req.user.id) {
+  try {
+    if (!req.user || !req.user.id) {
       return next(new ErrorHandler("User not authenticated", 401));
     }
-  
-  
+
+
     const notification = await Notification.findById(id);
     if (!notification || notification.user.toString() !== req.user.id) {
       return next(new ErrorHandler("Notification not found or unauthorized", 404));
     }
-  
+
     notification.isRead = true;
     await notification.save();
-  
+
     res.status(200).json({
       success: true,
       message: "Marked as read",
     });
-} catch (error) {
-   return next(new ErrorHandler(error.message, 400));
-}
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
 });
 
 
 
+
+//preference setting
 export const changePassword = catchAsyncErrors(async (req, res, next) => {
   const { currentPassword, newPassword, confirmPassword } = req.body;
 
@@ -313,11 +365,114 @@ export const changePassword = catchAsyncErrors(async (req, res, next) => {
     success: true,
     message: "Password updated successfully",
   });
-});
+})
 
+//profile setting
+//photo,designation,email,department
+export const updateProfileAndAddressInfo = catchAsyncErrors(async (req, res, next) => {
+  const loggedInUserId = req.user.id
+  const { empId } = req.params
 
+  const { fullName, fatherName, gender, bio, contactNo, emgContactName, emgContactNo, dob, email, department, position, currentAddress, permanentAddress, pincode, city, state } = req.body
 
+  const employee = await Employee.findById(empId).populate({ path: 'user', select: '-password' })
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
+  }
+  // console.log('employee:', employee);
+  // console.log('employee.user._id:', employee.user._id.toString());
+  // console.log('empId and loggedInUserId:', empId, loggedInUserId);
 
+  if (employee.user._id.toString() !== loggedInUserId) {
+    return next(new ErrorHandler("You are not authorized to edit info for this user", 403))
+  }
+
+  if (email && email !== employee.user.email) {
+    const existingUserWithEmail = await User.findOne({ email });
+    if (existingUserWithEmail) {
+      return next(new ErrorHandler("User already exists with this email", 400));
+    }
+
+    employee.user.email = email
+    await employee.user.save()
+  }
+
+  if (department) {
+    const existingDepartment = await Department.findOne({ name: department });
+    if (!existingDepartment) {
+      return next(new ErrorHandler("Invalid department", 400));
+    }
+
+    employee.department = existingDepartment._id;
+  }
+
+  if (position) {
+    const existingPosition = await Position.findOne({ name: position });
+    if (!existingPosition) {
+      return next(new ErrorHandler("Invalid position", 400));
+    }
+
+    employee.position = existingPosition._id;
+  }
+
+  if (req.file) {
+    const { path, filename, mimetype } = req.file
+    if (!path || !filename || !mimetype) {
+      return next(new ErrorHandler("Invalid file upload", 400));
+    }
+
+    const profilePhotoDoc = await Document.findOne({ user: loggedInUserId, type: 'empPhoto' })
+    if (profilePhotoDoc) { //update photo
+      if (profilePhotoDoc.publicId) {
+        await cloudinary.uploader.destroy(profilePhotoDoc.publicId)
+      }
+
+      profilePhotoDoc.fileUrl = path; // cloudinary file url
+      profilePhotoDoc.publicId = filename; // cloudinary public id
+      profilePhotoDoc.fileMimeType = mimetype;
+      profilePhotoDoc.status = "approved";
+
+      await profilePhotoDoc.save();
+    }
+    else {//add photo
+      const newPhoto = await Document.create({
+        user: loggedInUserId,
+        type: 'empPhoto',
+        fileUrl: path,
+        publicId: filename,
+        fileMimeType: mimetype,
+        status: 'approved'
+      })
+      employee.documents.push(newPhoto._id)
+    }
+
+  }
+
+  employee.fullName = fullName ?? employee.fullName
+  employee.fatherName = fatherName ?? employee.fatherName
+  employee.gender = gender ?? employee.gender
+  employee.bio = bio ?? employee.bio
+  employee.contactNo = contactNo ?? employee.contactNo
+  employee.emergencyContact = {
+    name: emgContactName ?? employee.emergencyContact.name,
+    phone: emgContactNo ?? employee.emergencyContact.phone
+  }
+  employee.dob = dob ?? employee.dob
+  employee.currentAddress = currentAddress ?? employee.currentAddress
+  employee.permanentAddress = permanentAddress ?? employee.permanentAddress
+  employee.pincode = pincode ?? employee.pincode
+  employee.city = city ?? employee.city
+  employee.state = state ?? employee.state
+  await employee.save()
+
+  res.status(200).json({
+    success: true,
+    message: "Profile and Address updated successfully",
+    employee
+  })
+})
+
+//salary setting
 export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) => {
   const { bankName, accountNumber, ifscCode, upiId } = req.body;
 
@@ -383,11 +538,9 @@ export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) =>
     message: "Bank account added successfully",
     bankAccount: newBankAccount,
   });
-});
+})
 
-
-
-
+//resignation setting
 export const submitResignation = catchAsyncErrors(async (req, res, next) => {
   const { reason, note, proposedLastWorkingDate } = req.body;
 
@@ -445,10 +598,14 @@ export const submitResignation = catchAsyncErrors(async (req, res, next) => {
     message: "Resignation submitted successfully",
     resignation,
   });
-});
+})
 
 
 
+
+
+
+///document
 export const addDocument = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
   console.log(loggedInUserId, req.user.role);
@@ -530,8 +687,6 @@ export const addDocument = catchAsyncErrors(async (req, res, next) => {
     document
   })
 })
-
-
 
 export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   // req.file =>{fieldname,originalname,encoding,minetype,path,size,filename}
@@ -626,10 +781,6 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   })
 })
 
-
-
-
-///document
 export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
   console.log(loggedInUserId, req.user.role);
@@ -692,7 +843,6 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
     document
   })
 })
-
 
 
 
@@ -763,9 +913,6 @@ export const sendMessageToUser = catchAsyncErrors(async (req, res) => {
   }
 });
 
-
-
-
 export const getSentMessages = catchAsyncErrors(async (req, res) => {
   try {
     const sent = await Message.find({ sender: req.user.id })
@@ -778,7 +925,6 @@ export const getSentMessages = catchAsyncErrors(async (req, res) => {
     res.status(500).json({ error: "Failed to load sent messages." });
   }
 });
-
 
 export const markMessageAsRead = catchAsyncErrors(async (req, res) => {
   const messageId = req.params.id;
@@ -800,7 +946,6 @@ export const markMessageAsRead = catchAsyncErrors(async (req, res) => {
 
 
 //feedback 
-
 export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
   const { type, title, description } = req.body;
 
@@ -808,11 +953,11 @@ export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
     if (!req.user || !req.user.id) {
       return next(new ErrorHandler("Unauthorized", 401));
     }
-  
+
     if (!type || !title) {
       return next(new ErrorHandler("Type and Title are required", 400));
     }
-  
+
     let attachment = null;
     if (req.file) {
       attachment = {
@@ -820,7 +965,7 @@ export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
         public_id: req.file.filename // Cloudinary public ID
       };
     }
-  
+
     const feedback = await Feedback.create({
       user: req.user.id,
       type,
@@ -828,14 +973,14 @@ export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
       description,
       attachment,
     });
-  
+
     res.status(201).json({
       success: true,
       message: "Feedback submitted successfully.",
       feedback,
     });
   } catch (error) {
-     return next(new ErrorHandler(error.message, 400));
+    return next(new ErrorHandler(error.message, 400));
   }
 });
 

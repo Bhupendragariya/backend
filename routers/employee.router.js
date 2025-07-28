@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, getMyAttendance, getUserMeetings, generatePayslip, markAttendance, logoutUser, refreshAccessToken } from "../controllers/Employee.controller.js";
+import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, updateProfileAndAddressInfo } from "../controllers/employee.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
 
@@ -34,8 +35,10 @@ router.post("Submit-Resignation", authenticate, authorize(["Employee"]), submitR
 router.post("/addDocument/:userId", authenticate, authorize(["Employee"]), upload.single('empDocument'), addDocument);
 
 router.put("/updateDocument/:userId/:docId", authenticate, authorize(["Employee"]), upload.single('empDocument'), updateDocument);
+router.put("/:userId/updateDocument/:docId", authenticate, authorize(["employee"]), upload.single('empDocument'), updateDocument);
 
 router.delete("/deleteDocument/:userId/:docId", authenticate, authorize(["Employee"]), deleteDocument);
+router.delete("/:userId/deleteDocument/:docId", authenticate, authorize(["employee"]), deleteDocument)
 
 router.post('/messages/send',  authenticate, authorize(["Employee"]),  upload.single('file'), sendMessageToUser);
 
@@ -51,6 +54,9 @@ router.get("/logout", authenticate, authorize(["Employee"]), logoutUser);
 
 
 router.get("/refresh", authenticate, authorize(["Employee"]), refreshAccessToken);
+router.put("/messages/:id/read", authenticate, authorize(["employee"]), markMessageAsRead);
+
+router.put("/updateProfileAndAddressInfo/:empId", authenticate, authorize(["employee"]), upload.single('empPhoto'), updateProfileAndAddressInfo)
 
 
 

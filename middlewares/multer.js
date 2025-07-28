@@ -34,16 +34,16 @@ const storage = new CloudinaryStorage({
 const upload = multer({
   storage,
   // limits: { fileSize: 5 * 1024 * 1024 },// 5mb in bytes
-  // fileFilter: (req, file, cb) => {
-  //   const allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+  fileFilter: (req, file, cb) => {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 
-  //   if (allowedMimeTypes.includes(file.mimetype)) {
-  //     cb(null, true);
-  //   }
-  //   else {
-  //     cb(new ErrorHandler("Only PDF, JPG, and PNG files are allowed", 400));
-  //   }
-  // },
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      cb(null, true);
+    }
+    else {
+      cb(new ErrorHandler("Only PDF, JPG, and PNG files are allowed", 400));
+    }
+  },
 })
 
 export default upload;

@@ -28,7 +28,7 @@ app.use(cookieParser());
 
 app.use("/api/v1/hr", hrRouter);
 app.use("/api/v1/admin", adminRouter);
-app.use("/api/v1/employees", employeeRouter);
+app.use("/api/v1/employee", employeeRouter);
 
 
 
