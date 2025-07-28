@@ -4,8 +4,8 @@ import {
   addEmployee,
   addMeetingType,
   addPosition,
-  approveDeleteRequest,
-  approveUpdateRequest,
+  approveOrRejectDeleteRequest,
+  approveOrRejectUpdateRequest,
   createMeeting,
   deleteDepartment,
   deleteMeetingType,
@@ -66,17 +66,17 @@ router.put(
 );
 
 router.put(
-  "/approveUpdateDocument/:docId",
+  "/documentUpdateRequest/:docId",
   authenticate,
   authorize(["admin"]),
-  approveUpdateRequest
+  approveOrRejectUpdateRequest
 );
 
 router.delete(
-  "/approveDeleteDocument/:docId",
+  "/documentDeleteRequest/:docId",
   authenticate,
   authorize(["admin"]),
-  approveDeleteRequest
+  approveOrRejectDeleteRequest
 );
 
 router.get(
@@ -250,7 +250,7 @@ router.get(
 )
 
 router.get(
-  "/getAllEmployeePerformance/",
+  "/getAllEmployeePerformance",
   authenticate,
   authorize(["admin"]),
   getAllEmployeePerformance

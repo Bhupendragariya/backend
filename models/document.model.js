@@ -1,14 +1,26 @@
 import mongoose from "mongoose";
 
+export const DOCUMENT_TYPE_ENUM = [
+  'empIdProof',
+  'empPhoto',
+  'emp10PassCert',
+  'emp12PassCert',
+  'empGradCert',
+  'empExpCert',
+  'empResume',
+  'empOfferLetter',
+  'empOtherDoc'
+];
+
 const documentSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
   },
-  type: { // aadhar, pan, marksheet, etc.
+  type: { // photo,id proof,marksheet etc.
     type: String,
     required: [true, 'Document type is required'],
-    enum: ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert', 'empResume', 'empOfferLetter', 'empOtherDoc'],
+    enum: DOCUMENT_TYPE_ENUM,
     trim: true,
   },
   fileUrl: { // Cloudinary file URL
@@ -22,24 +34,30 @@ const documentSchema = new mongoose.Schema({
   fileMimeType: { // image/jpeg, application/pdf
     type: String,
   },
+
   status: {
     type: String,
-    enum: ['approved', 'pending-update', 'pending-delete'],
+    enum: ['approved', 'rejected', 'pending-update', 'pending-delete'],
     default: 'approved',
   },
-  
-  reasonForRequest: { 
+  reasonForRequest: { //reason, if emp update/delete doc
     type: String,
     trim: true,
   },
-  requestedChanges: { 
+  requestedChanges: { //to add change,if emp update
     type: {
       type: String,
       trim: true,
     },
-    fileUrl: String,
-    publicId: String,
-    fileMimeType: String,
+    fileUrl: {
+      type: String
+    },
+    publicId: {
+      type: String
+    },
+    fileMimeType: {
+      type: String
+    },
   }
 }, { timestamps: true });
 
