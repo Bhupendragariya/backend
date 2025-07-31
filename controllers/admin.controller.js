@@ -1,27 +1,28 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
-import Employee from "../models/employee.model.js";
-import Leave from "../models/leave.model.js";
+import Employee from "../models/employee/employee.model.js";
+import Leave from "../models/leave/leave.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 import { nanoid } from "nanoid";
 import { sendNotification } from "../util/notification.js";
 import cloudinary from "../config/cloudinary.js";
-import Document, { DOCUMENT_TYPE_ENUM } from "../models/document.model.js";
-import Feedback from "../models/feedback.model.js";
-import Meeting from "../models/meeting.model.js";
-import Salary from "../models/salary.model.js";
-import BankAccount from "../models/banckAccount.model.js";
-import Department from "../models/department.model.js";
-import Position from "../models/position.model.js";
-import MeetingType from "../models/meetingType.model.js";
-import EmpIdConfig from "../models/empIdConfig.model.js";
-import ReviewCycleConfig from "../models/reviewCycleConfig.model.js";
-import TaskScoreConfig from "../models/taskScoreConfig.model.js";
-import PerfMetricsConfig from "../models/perfMetricsConfig.model.js";
-import StandardWorkingHour from "../models/standardWorkingHour.model.js";
+import Document, { DOCUMENT_TYPE_ENUM } from "../models/employee/document.model.js";
+import Feedback from "../models/others/feedback.model.js";
+import Meeting from "../models/meeting/meeting.model.js";
+import Salary from "../models/payroll/salary.model.js";
+import BankAccount from "../models/payroll/banckAccount.model.js";
+import Department from "../models/employee/department.model.js";
+import Position from "../models/employee/position.model.js";
+import MeetingType from "../models/meeting/meetingType.model.js";
+import EmpIdConfig from "../models/employee/empIdConfig.model.js";
+import ReviewCycleConfig from "../models/performance/reviewCycleConfig.model.js";
+import TaskScoreConfig from "../models/performance/taskScoreConfig.model.js";
+import PerfMetricsConfig from "../models/performance/perfMetricsConfig.model.js";
+import StandardWorkingHour from "../models/attendance/standardWorkingHour.model.js";
 import { populate } from "dotenv";
-import Performance from "../models/performance.model.js";
+import Performance from "../models/performance/performance.model.js";
+import Attendance from "../models/attendance/attendance.model.js";
 
 //------auth related controllers------//
 export const registerUser = catchAsyncErrors(async (req, res, next) => {
@@ -418,7 +419,7 @@ export const getAllMeetingTypes = catchAsyncErrors(async (req, res, next) => {
 
 
 
-//------leave related controllers------//
+//------attendence,leave related controllers------//
 export const getLeavesWithEmployeeName = catchAsyncErrors(
   async (req, res, next) => {
     const leaves = await Leave.find().populate("user", "email role").lean();
@@ -523,7 +524,7 @@ export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
       endDate: toDate(endDate),
       reason,
       comment,
-      createdAt: new Date(),
+      // createdAt: new Date(),
       reviewedBy: null,
       reviewedAt: null,
       status: "Pending"
@@ -539,6 +540,33 @@ export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+export const editAttendence = catchAsyncErrors(async (req, res, next) => {
+  const loggedInUserId = req.user.id
+  const { attId } = req.params
+  const { date, status, punchInTime, punchOutTime, locationType, notes } = req.body;
+
+  const attendance = await Attendance.findById(attId)
+  if (!attendance) {
+    return next(new ErrorHandler("Attendance record not found", 404));
+  }
+
+  attendance.date = date ? new Date(date) : attendance.date
+  attendance.punchInDate = punchInTime ? new Date(`${date}T${punchInTime}`) : attendance.punchInDate
+  attendance.punchOutDate = punchOutTime ? new Date(`${date}T${punchOutTime}`) : attendance.punchOutDate
+
+  attendance.status = status ?? attendance.status
+  attendance.locationType = locationType ?? attendance.locationType
+  attendance.notes = notes ?? attendance.notes
+  attendance.updatedBy = loggedInUserId
+
+  await attendance.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Attendance updated successfully",
+    attendance,
+  })
+})
 
 
 //------performance related controllers------//

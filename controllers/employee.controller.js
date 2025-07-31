@@ -1,20 +1,20 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
-import BankAccount from "../models/banckAccount.model.js";
-import Document from "../models/document.model.js";
-import Employee from "../models/employee.model.js";
-import Leave from "../models/leave.model.js";
-import Resignation from "../models/resignation.model.js";
+import BankAccount from "../models/payroll/banckAccount.model.js";
+import Document from "../models/employee/document.model.js";
+import Employee from "../models/employee/employee.model.js";
+import Leave from "../models/leave/leave.model.js";
+import Resignation from "../models/employee/resignation.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
 import cloudinary from "../config/cloudinary.js";
 import { sendNotification } from "../util/notification.js";
 import sendEmail from '../util/sendEmail.js';
 import fs from 'fs';
-import Message from "../models/message.model.js";
-import Feedback from "../models/feedback.model.js";
-import Department from "../models/department.model.js";
-import Position from "../models/position.model.js";
+import Message from "../models/others/message.model.js";
+import Feedback from "../models/others/feedback.model.js";
+import Department from "../models/employee/department.model.js";
+import Position from "../models/employee/position.model.js";
 
 
 
@@ -151,65 +151,29 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
-export const applyLeave = catchAsyncErrors(async (req, res, next) => {
-  const { leaveType, startDate, endDate, reason, comment } = req.body;
+export const getEmployeeDetails = catchAsyncErrors(async (req, res, next) => {
+  const { empId } = req.params
 
-  try {
+  const employee = await Employee.findById(empId)
+    .populate("user", "email")
+    .populate("department", "name")
+    .populate("position", "name")
+    .populate("documents")
+    .populate("leaveDetails")
+  // .populate("bankDetails")
+  // .populate("salaryDetails");
 
-
-    if (!req.user || !req.user.id) {
-      return next(new ErrorHandler("User not authenticated", 401));
-    }
-
-    if (!leaveType || !startDate || !endDate || !reason) {
-      return next(
-        new ErrorHandler("Please provide all required fields", 400)
-      );
-    }
-
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return next(new ErrorHandler("Invalid date format", 400));
-    }
-
-    if (start > end) {
-      return next(new ErrorHandler("Start date cannot be after end date", 400));
-    }
-
-    const newLeave = new Leave({
-      user: req.user.id,
-      leaveType,
-      startDate,
-      endDate,
-      reason,
-      comment,
-    });
-
-    await newLeave.save();
-
-    const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
-
-    for (const recipient of hrAndAdmins) {
-      await sendNotification({
-        userId: recipient._id,
-        title: "New Leave Request",
-        message: `${req.user.name} requested leave from ${start.toDateString()} to ${end.toDateString()}.`,
-        type: "Leave",
-        createdBy: req.user.id,
-      });
-    }
-
-    res.status(201).json({
-      message: "Leave request submitted successfully",
-      leave: newLeave,
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
   }
-});
+
+  res.status(200).json({
+    success: true,
+    employee,
+  })
+})
+
+
 
 
 
@@ -274,6 +238,204 @@ export const markNotificationAsRead = catchAsyncErrors(async (req, res, next) =>
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
+///messages
+export const sendMessageToUser = catchAsyncErrors(async (req, res) => {
+  try {
+    const { recipientId, subject, message, type } = req.body;
+    const file = req.file;
+    const senderId = req.user.id;
+
+    if (!recipientId || !subject || !message) {
+      return res.status(400).json({ error: "Recipient, subject, and message are required." });
+    }
+
+    const recipient = await User.findById(recipientId);
+    if (!recipient) {
+      return res.status(404).json({ error: "Recipient not found." });
+    }
+
+
+    await new Notification({
+      user: recipient.id,
+      title: subject,
+      message,
+      type,
+      createdBy: senderId,
+    }).save();
+
+
+    await new Message({
+      sender: senderId,
+      recipient: recipient.id,
+      subject,
+      body: message,
+      attachment: file ? {
+        filename: file.originalname,
+        path: file.path,
+      } : undefined,
+    }).save();
+
+
+    const emailHtml = `
+      <p>Hello ${recipient.name || "User"},</p>
+      <p><strong>${subject}</strong></p>
+      <p>${message}</p>
+    `;
+
+    const attachments = file ? [{
+      filename: file.originalname,
+      path: file.path,
+    }] : [];
+
+    await sendEmail(recipient.email, subject, emailHtml, attachments);
+
+
+    if (file) {
+      fs.unlink(file.path, err => {
+        if (err) console.error("File cleanup error:", err);
+      });
+    }
+
+    res.status(200).json({ message: "Message sent successfully." });
+  } catch (error) {
+    console.error("Send message error:", error);
+    res.status(500).json({ error: "Something went wrong." });
+  }
+});
+
+export const getSentMessages = catchAsyncErrors(async (req, res) => {
+  try {
+    const sent = await Message.find({ sender: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate('recipient', 'name email');
+
+    res.status(200).json({ messages: sent });
+  } catch (error) {
+    console.error("Sent error:", error);
+    res.status(500).json({ error: "Failed to load sent messages." });
+  }
+});
+
+export const markMessageAsRead = catchAsyncErrors(async (req, res) => {
+  const messageId = req.params.id;
+  const message = await Message.findById(messageId);
+
+  if (!message) return res.status(404).json({ error: "Message not found" });
+
+  if (message.recipient.toString() !== req.user.id) {
+    return res.status(403).json({ error: "Unauthorized" });
+  }
+
+  message.read = true;
+  await message.save();
+
+  res.status(200).json({ message: "Message marked as read" });
+});
+
+
+
+
+//feedback ,leave
+export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
+  const { type, title, description } = req.body;
+
+  try {
+    if (!req.user || !req.user.id) {
+      return next(new ErrorHandler("Unauthorized", 401));
+    }
+
+    if (!type || !title) {
+      return next(new ErrorHandler("Type and Title are required", 400));
+    }
+
+    let attachment = null;
+    if (req.file) {
+      attachment = {
+        url: req.file.path,        // cloudinary file URL
+        public_id: req.file.filename // Cloudinary public ID
+      };
+    }
+
+    const feedback = await Feedback.create({
+      user: req.user.id,
+      type,
+      title,
+      description,
+      attachment,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Feedback submitted successfully.",
+      feedback,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
+export const applyLeave = catchAsyncErrors(async (req, res, next) => {
+  const { leaveType, startDate, endDate, reason, comment } = req.body;
+
+  try {
+
+
+    if (!req.user || !req.user.id) {
+      return next(new ErrorHandler("User not authenticated", 401));
+    }
+
+    if (!leaveType || !startDate || !endDate || !reason) {
+      return next(
+        new ErrorHandler("Please provide all required fields", 400)
+      );
+    }
+
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return next(new ErrorHandler("Invalid date format", 400));
+    }
+
+    if (start > end) {
+      return next(new ErrorHandler("Start date cannot be after end date", 400));
+    }
+
+    const newLeave = new Leave({
+      user: req.user.id,
+      leaveType,
+      startDate,
+      endDate,
+      reason,
+      comment,
+    });
+
+    await newLeave.save();
+
+    const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+
+    for (const recipient of hrAndAdmins) {
+      await sendNotification({
+        userId: recipient._id,
+        title: "New Leave Request",
+        message: `${req.user.name} requested leave from ${start.toDateString()} to ${end.toDateString()}.`,
+        type: "Leave",
+        createdBy: req.user.id,
+      });
+    }
+
+    res.status(201).json({
+      message: "Leave request submitted successfully",
+      leave: newLeave,
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
 
 
 
@@ -789,142 +951,6 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
 })
 
 
-
-///send a email
-export const sendMessageToUser = catchAsyncErrors(async (req, res) => {
-  try {
-    const { recipientId, subject, message, type } = req.body;
-    const file = req.file;
-    const senderId = req.user.id;
-
-    if (!recipientId || !subject || !message) {
-      return res.status(400).json({ error: "Recipient, subject, and message are required." });
-    }
-
-    const recipient = await User.findById(recipientId);
-    if (!recipient) {
-      return res.status(404).json({ error: "Recipient not found." });
-    }
-
-
-    await new Notification({
-      user: recipient.id,
-      title: subject,
-      message,
-      type,
-      createdBy: senderId,
-    }).save();
-
-
-    await new Message({
-      sender: senderId,
-      recipient: recipient.id,
-      subject,
-      body: message,
-      attachment: file ? {
-        filename: file.originalname,
-        path: file.path,
-      } : undefined,
-    }).save();
-
-
-    const emailHtml = `
-      <p>Hello ${recipient.name || "User"},</p>
-      <p><strong>${subject}</strong></p>
-      <p>${message}</p>
-    `;
-
-    const attachments = file ? [{
-      filename: file.originalname,
-      path: file.path,
-    }] : [];
-
-    await sendEmail(recipient.email, subject, emailHtml, attachments);
-
-
-    if (file) {
-      fs.unlink(file.path, err => {
-        if (err) console.error("File cleanup error:", err);
-      });
-    }
-
-    res.status(200).json({ message: "Message sent successfully." });
-  } catch (error) {
-    console.error("Send message error:", error);
-    res.status(500).json({ error: "Something went wrong." });
-  }
-});
-
-export const getSentMessages = catchAsyncErrors(async (req, res) => {
-  try {
-    const sent = await Message.find({ sender: req.user.id })
-      .sort({ createdAt: -1 })
-      .populate('recipient', 'name email');
-
-    res.status(200).json({ messages: sent });
-  } catch (error) {
-    console.error("Sent error:", error);
-    res.status(500).json({ error: "Failed to load sent messages." });
-  }
-});
-
-export const markMessageAsRead = catchAsyncErrors(async (req, res) => {
-  const messageId = req.params.id;
-  const message = await Message.findById(messageId);
-
-  if (!message) return res.status(404).json({ error: "Message not found" });
-
-  if (message.recipient.toString() !== req.user.id) {
-    return res.status(403).json({ error: "Unauthorized" });
-  }
-
-  message.read = true;
-  await message.save();
-
-  res.status(200).json({ message: "Message marked as read" });
-});
-
-
-
-
-//feedback 
-export const submitFeedback = catchAsyncErrors(async (req, res, next) => {
-  const { type, title, description } = req.body;
-
-  try {
-    if (!req.user || !req.user.id) {
-      return next(new ErrorHandler("Unauthorized", 401));
-    }
-
-    if (!type || !title) {
-      return next(new ErrorHandler("Type and Title are required", 400));
-    }
-
-    let attachment = null;
-    if (req.file) {
-      attachment = {
-        url: req.file.path,        // cloudinary file URL
-        public_id: req.file.filename // Cloudinary public ID
-      };
-    }
-
-    const feedback = await Feedback.create({
-      user: req.user.id,
-      type,
-      title,
-      description,
-      attachment,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Feedback submitted successfully.",
-      feedback,
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
-  }
-});
 
 
 

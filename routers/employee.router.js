@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, updateProfileAndAddressInfo } from "../controllers/employee.controller.js";
+import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, updateProfileAndAddressInfo, getEmployeeDetails } from "../controllers/employee.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
 
@@ -23,9 +23,9 @@ router.put("/notifications/:id/read", authenticate, authorize(["employee"]), mar
 
 router.get("/notifications/unread", authenticate, authorize(["employee"]), getUnreadNotifications);
 
-router.put("/update-bankAccount", authenticate, authorize(["employee"]), addOrUpdateBankAccount);
+router.put("/updateBankAccount", authenticate, authorize(["employee"]), addOrUpdateBankAccount);
 
-router.post("Submit-Resignation", authenticate, authorize(["employee"]), submitResignation);
+router.post("submitResignation", authenticate, authorize(["employee"]), submitResignation);
 
 router.post("/addDocument/:userId", authenticate, authorize(["employee"]), upload.single('empDocument'), addDocument);
 
@@ -38,6 +38,8 @@ router.post('/messages/send', upload.single('file'), sendMessageToUser);
 router.put("/messages/:id/read", authenticate, authorize(["employee"]), markMessageAsRead);
 
 router.put("/updateProfileAndAddressInfo/:empId", authenticate, authorize(["employee"]), upload.single('empPhoto'), updateProfileAndAddressInfo)
+
+router.get('/getEmployeeDetails/:empId', authenticate, authorize(["employee"]), getEmployeeDetails)
 
 
 

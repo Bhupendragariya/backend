@@ -10,6 +10,7 @@ import {
   deleteDepartment,
   deleteMeetingType,
   deletePosition,
+  editAttendence,
   getAllDepartments,
   getAllEmployeePerformance,
   getAllMeetingTypes,
@@ -51,15 +52,22 @@ router.post("/addEmployee",
   ]),
   addEmployee);
 
+router.put(
+  "/editAttendence/:attId",
+  authenticate,
+  authorize(["admin"]),
+  editAttendence
+);
+
 router.get(
-  "/leave-detailed",
+  "/leaveDetailed",
   authenticate,
   authorize(["admin"]),
   getLeavesWithEmployeeName
 );
 
 router.put(
-  "/leave-approveLeave/:leaveId",
+  "/leaveApproveLeave/:leaveId",
   authenticate,
   authorize(["admin"]),
   reviewLeave

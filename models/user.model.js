@@ -13,26 +13,26 @@ const userSchema = new mongoose.Schema({
   },
 
 
-  password:{
-      type: String,
-      required: [true, "Password is required"]
-    
+  password: {
+    type: String,
+    required: [true, "Password is required"]
+
   },
 
-    role: {
+  role: {
     type: String,
     enum: ["admin", "hr", "employee"],
     default: "employee",
   },
 
 
-  refreshToken: { 
-    type: String, 
+  refreshToken: {
+    type: String,
     select: false
-   },
+  },
 
 
-   notificationEmail: {
+  notificationEmail: {
     type: String,
     default: "",
   },
@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema({
   },
 
   otpExpires: {
-    type:Date
+    type: Date
   }
 
 
