@@ -4,7 +4,6 @@ import Employee from "../models/employee/employee.model.js";
 import Leave from "../models/leave/leave.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
-import { nanoid } from "nanoid";
 import { sendNotification } from "../util/notification.js";
 import cloudinary from "../config/cloudinary.js";
 import Document, { DOCUMENT_TYPE_ENUM } from "../models/employee/document.model.js";
@@ -20,7 +19,6 @@ import ReviewCycleConfig from "../models/performance/reviewCycleConfig.model.js"
 import TaskScoreConfig from "../models/performance/taskScoreConfig.model.js";
 import PerfMetricsConfig from "../models/performance/perfMetricsConfig.model.js";
 import StandardWorkingHour from "../models/attendance/standardWorkingHour.model.js";
-import { populate } from "dotenv";
 import Performance from "../models/performance/performance.model.js";
 import Attendance from "../models/attendance/attendance.model.js";
 
@@ -228,17 +226,17 @@ export const approveOrRejectDeleteRequest = catchAsyncErrors(async (req, res, ne
 
 
 //------message related controllers------//
-export const getInboxMessages = async (req, res) => {
+export const getInboxMessages = catchAsyncErrors(async (req, res) => {
   try {
     const inbox = await Message.find({ recipient: req.user.id })
       .sort({ createdAt: -1 })
-      .populate('user', 'name email');
+      .populate('sender', 'name email');
 
     res.status(200).json({ messages: inbox });
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
-};
+});
 
 
 //------feedback related controllers------//
