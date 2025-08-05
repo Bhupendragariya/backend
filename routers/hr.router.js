@@ -25,10 +25,9 @@ import { authenticate, authorize } from "../middlewares/auth.js";
 import {
   createLeaveByAdmin,
   createMeeting,
-  getAllEmployeePerformance,
+
   getAllFeedbackMessages,
   getUnreadFeedbackCount,
-  getUserMeetings,
   markFeedbackAsRead,
 } from "../controllers/admin.controller.js";
 
@@ -96,7 +95,7 @@ router.get(
 
 router.post("/addMeeting", authenticate, authorize(["HR"]), createMeeting);
 
-router.get("/allMeetings", authenticate, authorize(["HR"]), getUserMeetings);
+
 
 router.post(
   "/createLeave",
@@ -105,12 +104,6 @@ router.post(
   createLeaveByAdmin
 );
 
-router.get(
-  "/getEmployeePerformance",
-  authenticate,
-  authorize(["HR"]),
-  getAllEmployeePerformance
-);
 
 
 router.get(

@@ -10,6 +10,7 @@ import { errorMiddleware } from "./middlewares/errorMiddlewares.js";
 
 
 
+
 dotenv.config()
 
 
@@ -37,7 +38,6 @@ const PORT = process.env.PORT || 4000
 
 
 app.use(errorMiddleware);
-
 
 
 dbConnection()

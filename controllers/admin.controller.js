@@ -26,6 +26,8 @@ import Payslip from "../models/payslip.model.js";
 import Settings from "../models/setting.model.js";
 import Attendance from "../models/attendance.model.js";
 import jwt from "jsonwebtoken";
+import Notification from "../models/notification.model.js";
+import { generateInvoiceId } from "../util/generateInvoice.js";
 
 
 
@@ -162,6 +164,14 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+      res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+
     res.status(200).json({
       message: "Login successfully",
       accessToken,
@@ -240,6 +250,8 @@ export const approveOrRejectUpdateRequest = catchAsyncErrors(async (req, res, ne
     document,
   })
 })
+
+
 
 export const approveOrRejectDeleteRequest = catchAsyncErrors(async (req, res, next) => {
   const { docId } = req.params;
@@ -358,77 +370,287 @@ export const getAllFeedbackMessages = catchAsyncErrors(async (req, res, next) =>
 
 //------meeting related controllers------//
 
-
 export const createMeeting = catchAsyncErrors(async (req, res, next) => {
-  try {
-    const { name, type, date, time, description } = req.body;
+  const { name, type, date, startTime, endTime, description } = req.body;
 
-    if (!name || !type || !date || !time) {
-      return next(new ErrorHandler("Missing required fields", 400));
-    }
+  if (!name || !type || !date || !startTime || !endTime) {
+    return next(new ErrorHandler("Missing required fields", 400));
+  }
 
-    const [startTime, endTime] = time.split(' - ').map(t => t.trim());
-    const [dd, mm, yy] = date.split('-');
-    const formattedDate = new Date(`20${yy}-${mm}-${dd}`);
+  // Validate date & times
+  const dt = new Date(`${date}T${startTime}:00`);
+  const dtEnd = new Date(`${date}T${endTime}:00`);
+  if (dtEnd <= dt) {
+    return next(new ErrorHandler("End time must be after start time", 400));
+  }
 
+  // Validate type value
+  if (!["Meeting","Event"].includes(type)) {
+    return next(new ErrorHandler("Invalid type. Must be 'Meeting' or 'Event'.", 400));
+  }
 
-    const users = await User.find({ role: { $in: ['employee'] } });
+  const meetingTypeDoc = await MeetingType.findOne({ name: type }).populate( 'name');
+  if (!meetingTypeDoc) {
+    return next(new ErrorHandler(`Type '${type}' does not exist`, 400));
+  }
 
-    const attendeeIds = users.map(user => user._id);
+  let attendeeIds = [];
+  if (type === "Meeting") {
+    const users = await User.find({ role: 'employee' });
+    attendeeIds = users.map(u => u._id);
+  }
 
-    const existingType = await MeetingType.findOne({ name: type });
-    if (!existingType) {
-      return next(new ErrorHandler("Meeting type does not exist", 400));
-    }
+  const meeting = await Meeting.create({
+    name,
+    type: meetingTypeDoc._id,
+    date,
+    startTime,
+    endTime,
+    description,
+    createdBy: req.user.id,
+    attendees: attendeeIds,
+  });
 
-    const meeting = await Meeting.create({
-      name,
-      type: existingType._id,
-      date: formattedDate,
-      startTime,
-      endTime,
-      description,
-      createdBy: req.user.id,
-      attendees: attendeeIds
-    });
-
+  if (attendeeIds.length) {
     const notifications = attendeeIds.map(userId => ({
       user: userId,
       title: `New ${type}: ${name}`,
-      description: `Scheduled on ${date} at ${startTime}`,
-      type: 'meeting',
+      description: `Scheduled on ${date} from ${startTime} to ${endTime}`,
+      type: type.toLowerCase(),
       createdBy: req.user.id
     }));
-
     await Notification.insertMany(notifications);
-
-    res.status(201).json({
-      success: true,
-      message: 'Meeting created and all users notified.',
-      meeting,
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
   }
+
+  res.status(201).json({
+    success: true,
+    message: `${type} created successfully.`,
+    meeting,
+  });
 });
 
-export const getUserMeetings = catchAsyncErrors(async (req, res, next) => {
-  const userId = req.user.id;
+
+
+
+export const getAllMeetings = catchAsyncErrors(async (req, res, next) => {
+  const meetings = await Meeting.find()
+    .populate({ path: "type", select: "name" }) // include type name
+    .populate({ path: "createdBy", select: "name email" });
+
+  res.status(200).json({
+    success: true,
+    count: meetings.length,
+    meetings,
+  });
+});
+
+
+
+export const deleteMeeting = catchAsyncErrors(async (req, res, next) => {
+  const meetingId = req.params.id;
+
+  const meeting = await Meeting.findById(meetingId);
+  if (!meeting) {
+    return next(new ErrorHandler("Meeting not found", 404));
+  }
+
+  await Meeting.findByIdAndDelete(meetingId);
+
+  res.status(200).json({
+    success: true,
+    message: "Meeting deleted successfully",
+  });
+});
+
+
+
+
+
+
+// controllers/dashboardController.js
+
+
+export const getEmployeeStatsall = async (req, res) => {
   try {
+    const result = await Employee.aggregate([
+      {
+        $group: {
+          _id: "$position", 
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $lookup: {
+          from: "positions", 
+          localField: "_id",
+          foreignField: "_id",
+          as: "positionDetails",
+        },
+      },
+      { $unwind: "$positionDetails" },
+      {
+        $project: {
+          position: "$positionDetails.name",
+          count: 1,
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
 
-
-    const meetings = await Meeting.find({ attendees: userId })
-      .sort({ date: 1 })
-      .limit(50);
+    const totalEmployees = result.reduce((sum, item) => sum + item.count, 0);
 
     res.status(200).json({
       success: true,
-      meetings
+      total: totalEmployees,
+      positions: result, 
     });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
+    console.error("Dashboard stats error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
+};
+
+
+
+export const getEmployeeStatus = catchAsyncErrors(async (req, res, next) => {
+  const { filter } = req.query;
+
+
+  const query = {};
+
+
+  if (filter === "active") {
+    query.status = "active";
+  } else if (filter === "inactive") {
+    query.status = "inactive";
+  } else if (filter === "onLeave") {
+    query["leaveDetails.0"] = { $exists: true }; 
+  }
+
+  const employees = await Employee.find(query)
+    .populate("position", "name") 
+    .select("employeeId fullName status position"); 
+
+  const result = employees.map(emp => ({
+    id: emp.employeeId,
+    name: emp.fullName,
+    position: emp.position?.name || "N/A",
+    status: emp.status === "active"
+      ? (emp.leaveDetails?.length ? "On Leave" : "Active")
+      : "Inactive",
+    attendance: "N/A", 
+  }));
+
+  res.status(200).json({
+    success: true,
+    total: result.length,
+    employees: result,
+  });
 });
+
+
+
+export const getEmployeesList = catchAsyncErrors(async (req, res) => {
+  const employees = await Employee.find()
+    .populate("position", "name")
+    .populate("user", "_id role");
+
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const attendanceRecords = await Attendance.find({
+    date: { $gte: startOfMonth, $lte: today },
+  });
+
+  const attendanceMap = {};
+  for (const record of attendanceRecords) {
+    const userId = record.user?.toString();
+    if (!userId) continue;
+
+    if (!attendanceMap[userId]) attendanceMap[userId] = 0;
+
+    if (["Present", "Late", "Work From Home"].includes(record.status)) {
+      attendanceMap[userId]++;
+    }
+  }
+
+  const totalDays = Math.ceil((today - startOfMonth) / (1000 * 60 * 60 * 24)) + 1;
+
+  const data = employees
+    .map((emp) => {
+      if (!emp.user || !emp.user._id) return null;
+
+      const userId = emp.user._id.toString();
+      const daysPresent = attendanceMap[userId] || 0;
+      const attendancePercent = totalDays > 0
+        ? Math.round((daysPresent / totalDays) * 100)
+        : 0;
+
+      return {
+        id: emp.employeeId,
+        name: emp.fullName,
+        contact: emp.contactNo,
+        jobRole: emp.position?.name || "N/A",
+        attendance: `${attendancePercent}%`,
+        type: mapType(emp.user?.role),
+        status: emp.status === "active" ? "Active" : "Inactive",
+      };
+    })
+    .filter(Boolean);
+
+  res.status(200).json({
+    success: true,
+    total: data.length,
+    employees: data,
+  });
+})
+function mapType(role = "") {
+  const r = role?.toLowerCase?.() || "";
+
+  if (r === "employee") return "Work from office";
+  if (r === "hr") return "Remote";
+  return "Hybrid"; 
+}
+
+
+export const getEmployeeById = catchAsyncErrors(async (req, res) => {
+  const emp = await Employee.findOne({ employeeId: req.params.id })
+    .populate("position", "name")
+    .populate("user", "email role")
+    .populate("leaveDetails")
+    .populate("salaryDetails") // etc. if needed
+
+  if (!emp) return next(new ErrorHandler("Employee not found", 404));
+
+  // Also fetch attendance summary if needed
+  const attendanceStats = await calculateAttendanceSummary(emp.user._id);
+
+  res.status(200).json({
+    success: true,
+    employee: {
+      id: emp.employeeId,
+      fullName: emp.fullName,
+      email: emp.user.email,
+      phone: emp.contactNo,
+      position: emp.position?.name,
+      status: emp.status,
+      joiningDate: emp.joinedOn,
+      emergencyContact: emp.emergencyContact,
+      address: emp.currentAddress,
+      bio: emp.bio,
+      documents: transformDocuments(emp.documents),
+      attendanceSummary: attendanceStats,
+      leaveStats: calculateLeaveStats(emp.leaveDetails),
+     
+    },
+  });
+});
+
+
+
+
+
+
 
 export const addMeetingType = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
@@ -494,195 +716,553 @@ export const getAllMeetingTypes = catchAsyncErrors(async (req, res, next) => {
 
 export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
   const {
-    name,
+    fullName,
     leaveType,
     startDate,
     endDate,
     reason,
     comment
   } = req.body;
-  try {
 
-    if (!name || !leaveType || !startDate || !endDate || !reason) {
+  try {
+    if (!fullName || !leaveType || !startDate || !endDate || !reason) {
       return next(new ErrorHandler("Please fill all required fields", 400));
     }
 
-
-    const employee = await Employee.findOne({ name });
+    const employee = await Employee.findOne({ fullName });
     if (!employee) {
       return next(new ErrorHandler("Employee not found", 404));
     }
 
-
+    // ✅ Robust date parser for dd-mm-yyyy
     const toDate = (dateStr) => {
-      const [dd, mm, yy] = dateStr.split("-");
-      return new Date(`20${yy}-${mm}-${dd}`);
+      const parts = dateStr.split("-");
+      if (parts.length !== 3) return null;
+
+      const [dd, mm, yyyy] = parts;
+
+      if (
+        isNaN(dd) || isNaN(mm) || isNaN(yyyy) ||
+        dd.length !== 2 || mm.length !== 2 || yyyy.length !== 4
+      ) {
+        return null;
+      }
+
+      const date = new Date(`${yyyy}-${mm}-${dd}`);
+      return isNaN(date.getTime()) ? null : date;
     };
 
+    // ✅ Parse and validate dates
+    const parsedStartDate = toDate(startDate);
+    const parsedEndDate = toDate(endDate);
+
+    if (!parsedStartDate || !parsedEndDate) {
+      return next(
+        new ErrorHandler("Invalid date format. Use DD-MM-YYYY (e.g., 01-08-2025).", 400)
+      );
+    }
+
     const leave = await Leave.create({
-      user: name,
+      user: employee._id,
       leaveType,
-      startDate: toDate(startDate),
-      endDate: toDate(endDate),
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       reason,
       comment,
       createdAt: new Date(),
       reviewedBy: null,
       reviewedAt: null,
-      status: "Pending"
+      status: "Approved"
     });
+
+
 
     res.status(201).json({
       success: true,
       message: "Leave request submitted by Admin/HR.",
       leave
     });
+
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
 });
 
+
+
+
+
+export const getAllEmployeeAttendance = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+   
+    const employees = await Employee.find()
+      .populate({
+        path: "position",
+        model: "Position",
+        select: "name"
+      })
+      .populate({
+        path: "user",
+        model: "User",
+        select: "_id"
+      });
+
+
+    const attendanceRecords = await Attendance.find({
+      date: { $gte: today, $lt: tomorrow },
+    });
+
+  
+    const attendanceMap = new Map();
+    attendanceRecords.forEach(att => {
+      attendanceMap.set(att.user.toString(), att);
+    });
+
+
+    const finalData = employees.map(emp => {
+      const userId = emp.user?._id?.toString();
+      const attendance = attendanceMap.get(userId);
+
+      return {
+        id: emp.employeeId,
+        name: emp.fullName,
+        role: emp.position?.name || "N/A",
+        checkIn: attendance?.punchIn || "------",
+        checkOut: attendance?.punchOut || "------",
+        status: attendance?.status || "Absent"
+      };
+    });
+
+    res.status(200).json(finalData);
+  } catch (error) {
+    console.error("Error fetching attendance:", error.message);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+
+export const getAttendanceByFilter = async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ message: "Date is required" });
+    }
+
+    const attendance = await Attendance.find({ date });
+    res.json(attendance);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+
+
+
+export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
+  const { leaveId } = req.params;
+  const { status } = req.body;
+  const userId = req.user.id;
+
+  // Validate status
+  const allowedStatuses = ["Approved", "Rejected"];
+  if (!allowedStatuses.includes(status)) {
+    return next(
+      new ErrorHandler(
+        `Invalid status. Allowed values: ${allowedStatuses.join(", ")}`,
+        400
+      )
+    );
+  }
+
+  // Find leave request
+  const leave = await Leave.findById(leaveId).populate("user");
+  if (!leave) {
+    return next(new ErrorHandler("Leave request not found", 404));
+  }
+  console.log("leaveId:", leaveId);
+
+  // Check if already reviewed
+  if (leave.status !== "Pending") {
+    return next(new ErrorHandler("Leave request is already reviewed", 400));
+  }
+
+  // Update leave status
+  leave.status = status;
+  leave.reviewedBy = userId;
+  leave.reviewedAt = new Date();
+
+  await leave.save();
+
+  // Send notification to user
+  await sendNotification({
+    userId: leave.user._id,
+    title: "Leave Request Update",
+    message: `Your leave request from ${leave.startDate.toDateString()} to ${leave.endDate.toDateString()} has been ${status}.`,
+    type: "Leave",
+    createdBy: userId,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: `Leave request ${status.toLowerCase()} successfully`,
+    leave,
+  });
+});
+
+
+
+
+export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next) => {
+  const leaves = await Leave.find()
+    .populate({
+      path: "user",
+      model: "Employee", 
+      select: "fullName employeeId "
+    })
+    .lean();
+
+  const formattedLeaves = leaves.map((leave) => {
+    const duration =
+      Math.floor(
+        (new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+    return {
+      employeeId: leave.user?.employeeId || "N/A",
+      fullName: leave.user?.fullName || "N/A",
+      leaveType: leave.leaveType,
+      from: new Date(leave.startDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+      to: new Date(leave.endDate).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+      duration: `${duration} day${duration > 1 ? "s" : ""}`,
+      status: leave.status,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: formattedLeaves.length,
+    leaves: formattedLeaves,
+  });
+});
+
+
+
+export const generatePayrollTable = catchAsyncErrors(async (req, res, next) => {
+  let { month, year } = req.query;
+
+
+  month = parseInt(month);
+  year = parseInt(year);
+  if (!month || month < 1 || month > 12 || !year || year < 2000) {
+    return res.status(400).json({ success: false, message: "Invalid month or year" });
+  }
+
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0); // last day of month
+
+
+  const employees = await Employee.find()
+    .populate("user")
+    .populate("position");
+
+
+  const userIds = employees.map(emp => emp.user._id);
+  const employeeIds = employees.map(emp => emp._id);
+
+  const attendanceRecords = await Attendance.find({
+    user: { $in: userIds },
+    date: { $gte: startDate, $lte: endDate }
+  });
+
+
+  const attendanceMap = {};
+  attendanceRecords.forEach(att => {
+    if (!attendanceMap[att.user]) attendanceMap[att.user] = [];
+    attendanceMap[att.user].push(att);
+  });
+
+  const leaveRecords = await Leave.find({
+    user: { $in: employeeIds },
+    status: "Approved",
+    startDate: { $lte: endDate },
+    endDate: { $gte: startDate }
+  });
+
+  // Group leave by employeeId
+  const leaveMap = {};
+  leaveRecords.forEach(lv => {
+    if (!leaveMap[lv.user]) leaveMap[lv.user] = [];
+    leaveMap[lv.user].push(lv);
+  });
+
+
+  const salaryRecords = await Salary.aggregate([
+    { $match: { user: { $in: userIds } } },
+    { $sort: { createdAt: -1 } },
+    {
+      $group: {
+        _id: "$user",
+        basic: { $first: "$basic" },
+        allowances: { $first: "$allowances" },
+        deductions: { $first: "$deductions" }
+      }
+    }
+  ]);
+
+  const salaryMap = {};
+  salaryRecords.forEach(s => {
+    salaryMap[s._id.toString()] = s;
+  });
+
+  // Fetch all payslips for the month & year
+  const payslips = await Payslip.find({ month, year, employee: { $in: employeeIds } });
+  const payslipMap = {};
+  payslips.forEach(p => {
+    payslipMap[p.employee.toString()] = p;
+  });
+
+  const payrollList = [];
+
+  for (const emp of employees) {
+    const userId = emp.user._id.toString();
+    const empId = emp._id.toString();
+
+
+    const userAttendance = attendanceMap[userId] || [];
+    let present = 0, absent = 0;
+    userAttendance.forEach(att => {
+      if (["Present", "Late", "Work From Home"].includes(att.status)) present++;
+      if (att.status === "Absent") absent++;
+    });
+
+    const userLeaves = leaveMap[empId] || [];
+    let leaveCount = 0;
+    userLeaves.forEach(lv => {
+      const from = new Date(Math.max(lv.startDate, startDate));
+      const to = new Date(Math.min(lv.endDate, endDate));
+      leaveCount += Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
+    });
+
+
+    const salary = salaryMap[userId] || {};
+    const basicSalary = salary.basic || 0;
+    const allowances = salary.allowances || 0;
+    const deductions = salary.deductions || 0;
+    const netAmount = basicSalary + allowances - deductions;
+
+    let payslip = payslipMap[empId];
+    let invoiceId;
+
+    if (!payslip) {
+      invoiceId = await generateInvoiceId(year, month);
+
+      payslip = new Payslip({
+        employee: emp._id,
+        month,
+        year,
+        attendance: { present, absent, onLeave: leaveCount },
+        earnings: {
+          basic: basicSalary,
+          hra: 0,
+          vehiclePetrol: 0,
+          medicalAllowance: 0,
+        },
+        deductions: {
+          professionalTax: 0,
+          tds: 0,
+          pf: 0,
+          attendanceDeduction: 0,
+        },
+        grossSalary: basicSalary + allowances,
+        totalDeductions: deductions,
+        netSalary: netAmount,
+        invoiceId,
+      });
+
+      await payslip.save();
+    } else {
+      invoiceId = payslip.invoiceId;
+    }
+
+    payrollList.push({
+      employeeName: emp.fullName,
+      designation: emp.position?.title || "-",
+      invoiceId,
+      attendance: { present, absent, leave: leaveCount },
+      basicSalary,
+      allowances,
+      deductions,
+      netAmount,
+      status: payslip.paymentStatus || "Pending"
+    });
+  }
+
+  return res.status(200).json({ success: true, data: payrollList });
+});
+
+
+export const markSalaryAsPaid = catchAsyncErrors(async (req, res) => {
+  const payslipId = req.params.id;
+
+  const payslip = await Payslip.findById(payslipId);
+  if (!payslip) {
+    return res.status(404).json({ message: "Payslip not found" });
+  }
+
+  payslip.paymentStatus = "Paid";
+  payslip.paymentDate = new Date();
+
+  await payslip.save();
+
+  return res.status(200).json({ success: true, message: "Salary marked as paid", payslip });
+});
 
 
 //------performance related controllers------//
 
 
-export const getAllEmployeePerformanceEvaluations = catchAsyncErrors(async (req, res, next) => {
+
+
+
+
+export const getPerformanceEvaluations = catchAsyncErrors(async (req, res) => {
   try {
+    const employees = await Employee.find().populate("user");
 
-    const employees = await Employee.find();
 
 
-    const results = await Promise.all(
-      employees.map(async (emp) => {
-        const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
-          .sort({ updatedAt: -1 })
-          .lean();
+    const performanceRecords = await Performance.find({
+      employee: { $in: employees.map((e) => e._id) },
+    });
 
-        return {
-          employeeName: emp.fullName,
-          position: emp.position,
-          performanceScore: evaluation ? evaluation.performanceScore : null,
-          scores: evaluation ? evaluation.scores : null,
-          notes: evaluation ? evaluation.notes : null,
-          lastUpdated: evaluation ? evaluation.updatedAt : null,
-          employeeId: emp._id,
-        };
-      })
-    );
+    const performanceMap = {};
+    performanceRecords.forEach((record) => {
+      performanceMap[record.employee.toString()] = record;
+    });
 
-    res.status(200).json({ success: true, data: results });
+    const data = employees.map((emp) => {
+      const perf = performanceMap[emp._id.toString()] || {};
+
+      const score = perf.performanceScore || 0;
+      let scoreLabel = "Average";
+
+      if (score >= 4.5) scoreLabel = "Outstanding";
+      else if (score >= 4.0) scoreLabel = "Excellent";
+      else if (score >= 3.0) scoreLabel = "Good";
+      else if (score >= 2.0) scoreLabel = "Fair";
+      else scoreLabel = "Poor";
+
+      return {
+        id: emp._id,
+        name: emp.fullName,
+        title: emp.position?.title || "Employee",
+        performanceScore: {
+          score: score.toFixed(1),
+          label: scoreLabel,
+        },
+        workQuality: perf.workQuality || 0,
+        productivity: perf.productivity || 0,
+        reliability: perf.reliability || 0,
+        lastUpdated: perf.updatedAt || emp.updatedAt,
+      };
+    });
+
+    res.status(200).json({ success: true, data });
   } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
+    console.error("Performance fetch error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 
+export const getAllPerformance = catchAsyncErrors(async (req, res) => {
+  const employees = await Employee.find().populate("position").lean();
+  const performanceRecords = await Performance.find().lean();
 
+  const perfMap = new Map(performanceRecords.map(r => [r.employee.toString(), r]));
 
+  const data = employees.map(emp => ({
+    id: emp._id.toString(),
+    fullName: emp.fullName,
+    position: emp.position?.title || "Employee",
+    performance: perfMap.has(emp._id.toString())
+      ? {
+          ...perfMap.get(emp._id.toString()),
+          average: perfMap.get(emp._id.toString()).performanceScore
+        }
+      : null,
+  }));
 
-export const saveEvaluation =  catchAsyncErrors( async (req, res, next) => {
-  try {
-    const { employeeId } = req.params;
-    const evaluatorId = req.user.id; 
-    const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
-
-    const performanceScore = (
-      (workQuality + productivity + reliability + teamwork + innovation) / 5
-    ).toFixed(2);
-
-   
-    let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId,  });
-
-    if (evaluation) {
-     
-      evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
-      evaluation.notes = notes;
-      evaluation.performanceScore = performanceScore;
-      await evaluation.save();
-    } else {
-  
-      evaluation = await PerformanceEvaluation.create({
-        employee: employeeId,
-        evaluator: evaluatorId,
-        scores: { workQuality, productivity, reliability, teamwork, innovation },
-        notes,
-        performanceScore,
-      });
-    }
-
-    res.status(200).json({ success: true, evaluation });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400)); 
-  }
+  res.status(200).json({ success: true, data });
 });
 
 
 
+export const savePerformance = catchAsyncErrors(async (req, res) => {
+  const { employeeId } = req.params;
+  const { workQuality, productivity, reliability, teamwork, innovation, notes, average, evaluator } = req.body;
 
-
-export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
-  const { empId } = req.params;
-  const loggedInUserId = req.user.id
-  const { scores, notes } = req.body; //scores=[{metricName, score}]
-
-  const employee = await Employee.findById(empId);
-  if (!employee) {
-    return next(new ErrorHandler("Employee not found", 404));
+  if (!evaluator) {
+    return res.status(400).json({ success: false, message: "Evaluator is required." });
   }
 
-  const evaluator = await User.findById(loggedInUserId);
-  if (!evaluator || (evaluator.role !== 'admin' && evaluator.role !== 'hr')) {
-    return next(new ErrorHandler("You are not authorize to add performance review.Only Admin or HR can do that", 403));
-  }
+  let record = await Performance.findOne({ employee: employeeId });
 
-  if (!scores || !Array.isArray(scores) || scores.length === 0) {
-    return next(new ErrorHandler("Scores are required and should be an non-empty array", 400));
-  }
-
-  const taskScoreConfig = await TaskScoreConfig.findOne();
-  if (!taskScoreConfig) {
-    return next(new ErrorHandler("Task Score Config not found", 404));
-  }
-
-  const sumOfScores = scores.reduce((acc, scoreObj) => acc + scoreObj.score, 0) //3+4+5=12
-  const totalOfMaxScore = scores.length * taskScoreConfig.maxScore //3*5=15
-  const percentageScore = (sumOfScores / totalOfMaxScore) * 100;// (12/15)*100=80
-  const averageScore = sumOfScores / scores.length; //12/3=4
-
-  const performanceScore = {
-    sumOfScores,
-    totalOfMaxScore,
-    averageScore,
-    percentageScore
-  }
-
-  let performanceReview = await Performance.findOne({ employee: empId })
-
-  if (performanceReview) {
-    performanceReview.evaluator = evaluator._id;
-    performanceReview.scores = scores;
-    performanceReview.notes = notes ?? performanceReview.notes;
-    performanceReview.performanceScore = performanceScore
-    await performanceReview.save();
+  if (record) {
+    record.workQuality = workQuality;
+    record.productivity = productivity;
+    record.reliability = reliability;
+    record.teamwork = teamwork;
+    record.innovation = innovation;
+    record.notes = notes;
+    record.performanceScore = average;
+    record.evaluator = evaluator;   // <== add this
+    record.updatedAt = Date.now();
+    await record.save();
   } else {
-    performanceReview = await Performance.create({
-      employee: empId,
-      evaluator: evaluator._id,
-      scores,
+    record = await Performance.create({
+      employee: employeeId,
+      workQuality,
+      productivity,
+      reliability,
+      teamwork,
+      innovation,
       notes,
-      performanceScore
-    })
+      performanceScore: average,
+      evaluator,   // <== add this
+    });
   }
 
-  res.status(201).json({
-    success: true,
-    message: "Performance review submitted successfully",
-    minScorePerTask: taskScoreConfig.minScore,
-    maxScorePerTask: taskScoreConfig.maxScore,
-    performanceReview
-  })
-})
+  res.status(200).json({ success: true, performance: record.toObject() });
+});
+
+
+
+
+
+
+
+
+
+
 
 export const getEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
   const { empId } = req.params;
@@ -704,65 +1284,31 @@ export const getEmployeePerformance = catchAsyncErrors(async (req, res, next) =>
   })
 })
 
-export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
-  const performances = await Performance.find()
-    // .populate('employee', 'fullName employeeId department position documents')
-    // .populate("employee.department", "name")
-    // .populate("employee.position", "name")
-    // .populate({path:'employee.documents',match:{type:'empPhoto'}, select:'fileUrl publicId fileMimeType'})    
-    .populate({
-      path: 'employee',
-      select: 'fullName employeeId department position',
-      populate: [
-        { path: 'department', select: 'name' },
-        { path: 'position', select: 'name' },
-        { path: 'documents', match: { type: 'empPhoto' }, select: 'type fileUrl publicId fileMimeType' }
-      ]
-    })
 
-  if (!performances || performances.length === 0) {
-    return next(new ErrorHandler("No performance reviews found", 404));
-  }
-
-  res.status(200).json({
-    success: true,
-    performances
-  })
-});
 
 
 //------employee related controllers------//
 //------add employee related controllers------//
 
 
-
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
-    fullName, fatherName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
+    fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
     //bank details
     bankName, accountNumber, ifscCode,
     //salary details
     basic, salaryCycle, allowances, deductions, netSalary
   } = req.body
 
-  
-  console.log({
-  fullName, email, contactNo, emgContactName, emergencyContact,
-  joiningDate, department, position, address, permanentAddress,
-  bankName, accountNumber, ifscCode,
-  basic, salaryCycle, allowances, netSalary
-});
   //bio and deductions are optional
   if (
-    !fullName || !fatherName || !email || !contactNo || !emgContactName || !emgContactNo ||
+    !fullName || !email || !contactNo || !emgContactName || !emgContactNo ||
     !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
     !bankName || !accountNumber || !ifscCode ||
     !basic || !salaryCycle || !allowances || !netSalary
   ) {
     return next(new ErrorHandler("Please provide all required fields.", 400));
   }
-
-
 
   //emp id config
   const empIdConfig = await EmpIdConfig.findOne();
@@ -800,20 +1346,6 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Position does not exist", 400));
   }
 
-  const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
-
-  console.log(requiredDocTypes)
-
-  const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
-  if (missingDocs.length > 0) {
-    return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
-  }
-
-
-
-
-
-  
   const user = await User.create({
     email,
     password: finalEmployeeId,
@@ -839,36 +1371,30 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   //fields -> empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
   // console.log(req.files);
 
-  // const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
+  const requiredDocTypes = ['empIdProof', 'empPhoto', 'emp10PassCert', 'emp12PassCert', 'empGradCert', 'empExpCert']
 
-  // const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
-  // if (missingDocs.length > 0) {
-  //   return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
-  // }
+  const missingDocs = requiredDocTypes.filter(type => !req.files[type] || req.files[type].length === 0);
+  if (missingDocs.length > 0) {
+    return next(new ErrorHandler(`Please upload all required documents.Missing Document(s): ${missingDocs.join(', ')}`, 400));
+  }
 
   const documents = []
 
-  if (req.files) {
-    for (const field in req.files) { //req.files obj
-      if (!DOCUMENT_TYPE_ENUM.includes(field)) {
-        return next(new ErrorHandler(`${field} is not a valid document type`, 400));
+  for (const field in req.files) { //req.files obj
+    for (let file of req.files[field]) { //field arr
+      const { path, filename, mimetype } = file
+      if (!path || !filename || !mimetype) {
+        return next(new ErrorHandler("Invalid file upload", 400));
       }
 
-      for (let file of req.files[field]) { //field arr
-        const { path, filename, mimetype } = file
-        if (!path || !filename || !mimetype) {
-          return next(new ErrorHandler("Invalid file upload", 400));
-        }
-
-        const document = await Document.create({
-          user: user._id,
-          type: field,
-          fileUrl: path,
-          publicId: filename,
-          fileMimeType: mimetype,
-        })
-        documents.push(document._id)
-      }
+      const document = await Document.create({
+        user: user._id,
+        type: field,
+        fileUrl: path,
+        publicId: filename,
+        fileMimeType: mimetype,
+      })
+      documents.push(document._id)
     }
   }
 
@@ -879,14 +1405,14 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     contactNo,
     emergencyContact: {
       name: emgContactName,
-      phone: emergencyContact
+      phone: emgContactNo
     },
-    department: existingDepartment._id,
-    position: existingPosition._id,
-    address,
+    department: existingDepartment,
+    position: existingPosition,
+    currentAddress,
     permanentAddress,
     bio,
-    joiningDate,
+    joinedOn,
     documents,
     salaryDetails: [salary._id],
     bankDetails: bankAccount._id,
@@ -898,6 +1424,10 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
     employee
   })
 })
+
+
+
+
 
 //------department and position related controllers------//
 export const addDepartment = catchAsyncErrors(async (req, res, next) => {

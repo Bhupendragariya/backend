@@ -17,6 +17,9 @@ import Department from "../models/department.model.js";
 import Position from "../models/position.model.js";
 import Salary from "../models/salary.model.js";
 import jwt from "jsonwebtoken";
+import Meeting from "../models/meeting.model.js";
+import Settings from "../models/setting.model.js";
+import Attendance from "../models/attendance.model.js";
 
 
 
@@ -99,6 +102,9 @@ export const getEmployeeDashboard = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+
+
+
 export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
@@ -112,6 +118,7 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
     if (!user) {
       return next(new ErrorHandler("invalid user and password", 400));
     }
+    
 
     const isPasswordMatched = await user.comparePassword(password);
 
@@ -127,10 +134,20 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
       user._id
     );
 
-    const employee = await Employee.findOne({ user: user._id });
+    const employee = await Employee.findOne({ user: user._id }).populate({path: 'user',
+  select: 'role email',}).populate("position", "name")
+  .populate("department", "name");
     if (!employee) {
       return next(new ErrorHandler("Employee profile not found", 404));
     }
+   
+
+    if (!employee || !employee.user || !employee.user.role) {
+  return next(new ErrorHandler("Employee profile or user role not found", 404));
+}
+
+
+   
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
@@ -145,132 +162,91 @@ export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
     res.status(200).json({
       message: "Login successfully",
       accessToken,
-
-      employee,
+      user: employee,
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
+
 
 export const applyLeave = catchAsyncErrors(async (req, res, next) => {
   const { leaveType, startDate, endDate, reason, comment } = req.body;
 
-  try {
+  if (!req.user || !req.user.id) {
+    return next(new ErrorHandler("User not authenticated", 401));
+  }
 
+   const employee = await Employee.findOne({ user: req.user.id });
 
-    if (!req.user || !req.user.id) {
-      return next(new ErrorHandler("User not authenticated", 401));
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
     }
 
-    if (!leaveType || !startDate || !endDate || !reason) {
-      return next(
-        new ErrorHandler("Please provide all required fields", 400)
-      );
-    }
+  if (!leaveType || !startDate || !endDate || !reason) {
+    return next(new ErrorHandler("Please provide all required fields", 400));
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return next(new ErrorHandler("Invalid date format", 400));
+  }
+
+  if (start > end) {
+    return next(new ErrorHandler("Start date cannot be after end date", 400));
+  }
 
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
 
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return next(new ErrorHandler("Invalid date format", 400));
-    }
+  const newLeave = new Leave({
+    user: employee._id,
+    leaveType,
+    startDate: start,
+    endDate: end,
+    reason,
+    comment,
+  });
 
-    if (start > end) {
-      return next(new ErrorHandler("Start date cannot be after end date", 400));
-    }
 
-    const newLeave = new Leave({
-      user: req.user.id,
-      leaveType,
-      startDate,
-      endDate,
-      reason,
-      comment,
-    });
+  await newLeave.save();
 
-    await newLeave.save();
+  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
-    const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
 
-    for (const recipient of hrAndAdmins) {
+  
+
+  // Notify HR and Admin
+  for (const recipient of hrAndAdmins) {
+    try {
       await sendNotification({
         userId: recipient._id,
         title: "New Leave Request",
-        message: `${req.user.name} requested leave from ${start.toDateString()} to ${end.toDateString()}.`,
+        message: `${req.user.fullName || req.user.name || 'User'} requested leave from ${start.toDateString()} to ${end.toDateString()}.`,
         type: "Leave",
         createdBy: req.user.id,
       });
+    } catch (notifyError) {
+      console.error(`Notification failed for user ${recipient._id}:`, notifyError);
+      // Optionally continue without failing whole request
     }
-
-    res.status(201).json({
-      message: "Leave request submitted successfully",
-      leave: newLeave,
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
   }
+
+  // Optionally populate user info in the leave response
+  const populatedLeave = await Leave.findById(newLeave._id).populate('user', 'fullName email');
+
+  res.status(201).json({
+    message: "Leave request submitted successfully",
+    leave: populatedLeave,
+  });
 });
 
 
 
-export const employeeLogin = catchAsyncErrors(async (req, res, next) => {
-  const { email, password, role } = req.body;
 
-  try {
-    if (!email || !password || !role) {
-      return next(new ErrorHandler("please provide email and password", 400));
-    }
-
-    const user = await User.findOne({ email }).select("+password");
-
-    if (!user) {
-      return next(new ErrorHandler("invalid user and password", 400));
-    }
-
-    const isPasswordMatched = await user.comparePassword(password);
-
-    if (!isPasswordMatched) {
-      return next(new ErrorHandler(" Invalid user and password ", 400));
-    }
-
-    if (user.role !== role) {
-      return next(new ErrorHandler("Unauthorized role", 403));
-    }
-
-    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-      user._id
-    );
-
-    const employee = await Employee.findOne({ user: user._id });
-    if (!employee) {
-      return next(new ErrorHandler("Employee profile not found", 404));
-    }
-
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      sameSite: 'none',
-    });
-
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      sameSite: 'none',
-    });
-
-    res.status(200).json({
-      message: "Login successfully",
-      accessToken,
-
-      employee,
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
-  }
-});
-
-
-//notifaction  messsagess like red unread 
 
 export const getNotifications = catchAsyncErrors(async (req, res, next) => {
 
@@ -521,7 +497,7 @@ export const addOrUpdateBankAccount = catchAsyncErrors(async (req, res, next) =>
   employee.bankAccounts = newBankAccount._id;
   await employee.save();
 
-  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+  const hrAndAdmins = await User.find({ role: { $in: ["HR", 'Admin'] } });
 
   for (const recipient of hrAndAdmins) {
     await sendNotification({
@@ -581,7 +557,7 @@ export const submitResignation = catchAsyncErrors(async (req, res, next) => {
 
   await resignation.save();
 
-  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+  const hrAndAdmins = await User.find({ role: { $in: ["HR", 'Admin'] } });
 
   for (const recipient of hrAndAdmins) {
     await sendNotification({
@@ -608,7 +584,7 @@ export const submitResignation = catchAsyncErrors(async (req, res, next) => {
 ///document
 export const addDocument = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
-  console.log(loggedInUserId, req.user.role);
+
 
   const { userId } = req.params;
   if (!userId) {
@@ -669,7 +645,7 @@ export const addDocument = catchAsyncErrors(async (req, res, next) => {
   // })
 
 
-  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+  const hrAndAdmins = await User.find({ role: { $in: ["HR", 'Admin'] } });
 
   for (const recipient of hrAndAdmins) {
     await sendNotification({
@@ -762,7 +738,7 @@ export const updateDocument = catchAsyncErrors(async (req, res, next) => {
   await document.save();
 
 
-  const hrAndAdmins = await User.find({ role: { $in: ['hr', 'admin'] } });
+  const hrAndAdmins = await User.find({ role: { $in: ["HR", 'Admin'] } });
 
   for (const recipient of hrAndAdmins) {
     await sendNotification({
@@ -843,6 +819,39 @@ export const deleteDocument = catchAsyncErrors(async (req, res, next) => {
     document
   })
 })
+
+
+
+export const getAllDocuments = catchAsyncErrors(async (req, res, next) => {
+  const { userId } = req.params;
+
+  if (!userId) {
+    return next(new ErrorHandler("User ID is required", 400));
+  }
+
+  // Employee cannot access documents of other users
+  if (req.user.role === "Employee" && req.user.id !== userId) {
+    return next(
+      new ErrorHandler("You are not authorized to view these documents", 403)
+    );
+  }
+
+  const documents = await Document.find({ user: userId }).sort({ createdAt: -1 });
+
+  if (!documents || documents.length === 0) {
+    return res.status(200).json({
+      success: true,
+      message: "No documents found for this user.",
+      documents: [],
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Documents fetched successfully",
+    documents,
+  });
+});
 
 
 
@@ -1033,21 +1042,26 @@ try {
 
 
 export const getUserMeetings = catchAsyncErrors(async (req, res, next) => {
-  const userId = req.user.id;
-try {
-  
-   
-    const meetings = await Meeting.find({ attendees: userId })
-      .sort({ date: 1 }) 
-      .limit(50); 
-  
+  try {
+    const adminAndHrUsers = await User.find({
+      role: { $in: ['Admin', 'HR'] }
+    }).select('_id');
+
+    const creatorIds = adminAndHrUsers.map(user => user._id);
+
+    const meetings = await Meeting.find({
+      createdBy: { $in: creatorIds }
+    })
+    .sort({ date: 1 })
+    .limit(50);
+
     res.status(200).json({
       success: true,
       meetings
     });
-} catch (error) {
- return next(new ErrorHandler(error.message, 400)); 
-}
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
 });
 
 
@@ -1196,7 +1210,8 @@ export const markAttendance = catchAsyncErrors(async (req, res, next) => {
   // 3. Determine status
   let status = "Present";
 
-  const scheduledStartTime = 9 * 60; // 9:00 AM in minutes
+  const scheduledStartTime = 9 * 60;
+  
   const actualStart = punchIn ? timeToMinutes(punchIn) : null;
 
   if (actualStart !== null && actualStart > scheduledStartTime + checkInBufferTime) {

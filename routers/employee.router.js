@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, getMyAttendance, getUserMeetings, generatePayslip, markAttendance, logoutUser, refreshAccessToken } from "../controllers/Employee.controller.js";
-import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, updateProfileAndAddressInfo } from "../controllers/employee.controller.js";
+import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, getMyAttendance, getUserMeetings, generatePayslip, markAttendance, logoutUser, refreshAccessToken, updateProfileAndAddressInfo, getAllDocuments } from "../controllers/Employee.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
 
@@ -10,7 +9,7 @@ const router = Router();
 
 
 
-router.post("/EmployeeLogin", employeeLogin);
+router.post("/login", employeeLogin);
 
 router.put("/changePassword", authenticate, authorize(["Employee"]), changePassword);
 
@@ -26,13 +25,16 @@ router.put("/notifications/:id/read", authenticate, authorize(["Employee"]), mar
 
 router.get("/notifications/unread", authenticate, authorize(["Employee"]), getUnreadNotifications);
 
-router.get("/Meetings", authenticate, authorize(["Employee"]), getUserMeetings);
+router.get("/Meeting", authenticate, authorize(["Employee"]), getUserMeetings);
 
 router.put("/update-bankAccount", authenticate, authorize(["Employee"]), addOrUpdateBankAccount);
+
 
 router.post("Submit-Resignation", authenticate, authorize(["Employee"]), submitResignation);
 
 router.post("/addDocument/:userId", authenticate, authorize(["Employee"]), upload.single('empDocument'), addDocument);
+
+router.get("/documents/:userId", authenticate, authorize(["Employee"]), getAllDocuments);
 
 router.put("/updateDocument/:userId/:docId", authenticate, authorize(["Employee"]), upload.single('empDocument'), updateDocument);
 router.put("/:userId/updateDocument/:docId", authenticate, authorize(["employee"]), upload.single('empDocument'), updateDocument);
@@ -54,9 +56,11 @@ router.get("/logout", authenticate, authorize(["Employee"]), logoutUser);
 
 
 router.get("/refresh", authenticate, authorize(["Employee"]), refreshAccessToken);
+
 router.put("/messages/:id/read", authenticate, authorize(["employee"]), markMessageAsRead);
 
-router.put("/updateProfileAndAddressInfo/:empId", authenticate, authorize(["employee"]), upload.single('empPhoto'), updateProfileAndAddressInfo)
+router.put("/updateProfileAndAddressInfo/:empId", authenticate, authorize(["employee"]),
+ upload.single('empPhoto'), updateProfileAndAddressInfo)
 
 
 

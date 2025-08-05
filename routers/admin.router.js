@@ -13,7 +13,7 @@ import {
   deleteMeetingType,
   deletePosition,
   getAllEmployeeCards,
-  getAllEmployeePerformance,
+
   getAllFeedbackMessages,
   getAllDepartments,
   getAllMeetingTypes,
@@ -26,14 +26,13 @@ import {
   getReviewCycleConfig,
   getStandardWorkingHour,
   getTaskScoreConfig,
-  getUserMeetings,
   getSinglePayslip,
   getUnreadFeedbackCount,
   loginUser,
   markFeedbackAsRead,
   registerUser,
   reviewLeave,
-  reviewPerformance,
+
   setEmpIdConfig,
   saveGeneralSettings,
   getSettings,
@@ -45,9 +44,24 @@ import {
   setStandardWorkingHour,
   setTaskScoreConfig,
   refreshAccessToken,
+  getAllMeetings,
+  deleteMeeting,
+  getEmployeeStatus,
+  getEmployeesList,
+  getEmployeeById,
+  getEmployeeStatsall,
+  getAllEmployeeAttendance,
+  getAttendanceByFilter,
+  generatePayrollTable,
+  markSalaryAsPaid,
+  getPerformanceEvaluations,
+  savePerformance,
+  getAllPerformance,
+ 
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
+
 
 
 
@@ -84,19 +98,18 @@ router.put(
 router.put(
   "/documentUpdateRequest/:docId",
   authenticate,
-  authorize(["admin"]),
-  approveOrRejectUpdateRequest
   authorize(["Admin"]),
-  approveUpdateRequest
+  approveOrRejectDeleteRequest,
 );
+
+
+  
 
 router.delete(
   "/documentDeleteRequest/:docId",
   authenticate,
-  authorize(["admin"]),
-  approveOrRejectDeleteRequest
   authorize(["Admin"]),
-  approveDeleteRequest
+ approveOrRejectUpdateRequest,
 );
 
 router.get(
@@ -146,7 +159,32 @@ router.get(
 
 router.post("/Meeting", authenticate, authorize(["Admin"]), createMeeting);
 
-router.get("/allMeetings", authenticate, authorize(["Admin"]), getUserMeetings);
+router.get("/allMeetings", authenticate, authorize(["Admin"]), getAllMeetings);
+
+router.delete("/deleteMeting/:id", authenticate, authorize(["Admin"]), deleteMeeting);
+
+router.get("/dashboard/employee-count", authenticate, authorize(["Admin"]), getEmployeeStatsall);
+
+
+router.get("/getEmployeeStatus", authenticate, authorize(["Admin"]), getEmployeeStatus);
+
+
+router.get("/getEmployeesList", authenticate, authorize(["Admin"]), getEmployeesList);
+
+
+router.get("/employees/:id", authenticate, authorize(["Admin"]), getEmployeeById);
+
+router.get("/getAllAttendance", authenticate, authorize(["Admin"]), getAllEmployeeAttendance);
+
+router.get("/getAttendanceByFilter", authenticate, authorize(["Admin"]), getAttendanceByFilter);
+
+router.get("/payroll", authenticate, authorize(["Admin"]), generatePayrollTable);
+
+router.get("/salaryAsPaid", authenticate, authorize(["Admin"]), markSalaryAsPaid);
+
+
+
+
 
 router.post(
   "/createLeave",
@@ -156,10 +194,28 @@ router.post(
 );
 
 router.get(
-  "/getEmployeePerformance",
+  "/getAllPerformance",
   authenticate,
   authorize(["Admin"]),
-  getAllEmployeePerformance);
+  getAllPerformance);
+
+
+router.post(
+  "/savePerformance/:employeeId",
+  authenticate,
+  authorize(["Admin"]),
+  savePerformance);
+
+
+
+
+
+
+router.get(
+  "/performance",
+  authenticate,
+  authorize(["Admin"]),
+  getPerformanceEvaluations);
 
 
 router.get(
@@ -299,12 +355,12 @@ router.post(
   setPerfMetricsConfig
 )
 
-router.post(
-  "/reviewPerformance/:empId",
-  authenticate,
-  authorize(['Admin']),
-  reviewPerformance
-)
+// router.post(
+//   "/reviewPerformance/:empId",
+//   authenticate,
+//   authorize(['Admin']),
+//   reviewPerformance
+// )
 
 router.get(
   "/getEmployeePerformance/:empId",
@@ -313,12 +369,7 @@ router.get(
   getEmployeePerformance
 )
 
-router.get(
-  "/getAllEmployeePerformance",
-  authenticate,
-  authorize(["admin"]),
-  getAllEmployeePerformance
-)
+
 
 
 

@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 const meetingTypeSchema = new mongoose.Schema({
   name: { //daily meeting, weekly meeting, interview, training
     type: String,
+     enum: ['Meeting',  "Event"],
     required: [true, 'Event title is required'],
     trim: true,
   },
