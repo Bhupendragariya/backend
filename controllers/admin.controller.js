@@ -1,35 +1,29 @@
 import { catchAsyncErrors } from "../middlewares/catchAsyncError.js";
 import ErrorHandler from "../middlewares/errorMiddlewares.js";
-import Employee from "../models/employee.model.js";
-import Leave from "../models/leave.model.js";
+import Employee from "../models/employee/employee.model.js";
+import Leave from "../models/leave/leave.model.js";
 import User from "../models/user.model.js";
 import { generateAccessAndRefreshTokens } from "../util/jwtToken.js";
-import { nanoid } from "nanoid";
 import { sendNotification } from "../util/notification.js";
 import cloudinary from "../config/cloudinary.js";
-import Document, { DOCUMENT_TYPE_ENUM } from "../models/document.model.js";
-import Feedback from "../models/feedback.model.js";
-import Meeting from "../models/meeting.model.js";
-import Salary from "../models/salary.model.js";
-import BankAccount from "../models/banckAccount.model.js";
-import Department from "../models/department.model.js";
-import Position from "../models/position.model.js";
-import MeetingType from "../models/meetingType.model.js";
-import EmpIdConfig from "../models/empIdConfig.model.js";
-import ReviewCycleConfig from "../models/reviewCycleConfig.model.js";
-import TaskScoreConfig from "../models/taskScoreConfig.model.js";
-import PerfMetricsConfig from "../models/perfMetricsConfig.model.js";
-import StandardWorkingHour from "../models/standardWorkingHour.model.js";
-import { populate } from "dotenv";
-import Performance from "../models/performance.model.js";
+import Document, { DOCUMENT_TYPE_ENUM } from "../models/employee/document.model.js";
+import Feedback from "../models/others/feedback.model.js";
+import Meeting from "../models/meeting/meeting.model.js";
+import Salary from "../models/payroll/salary.model.js";
+import BankAccount from "../models/payroll/banckAccount.model.js";
+import Department from "../models/employee/department.model.js";
+import Position from "../models/employee/position.model.js";
+import MeetingType from "../models/meeting/meetingType.model.js";
+import EmpIdConfig from "../models/employee/empIdConfig.model.js";
+import ReviewCycleConfig from "../models/performance/reviewCycleConfig.model.js";
+import TaskScoreConfig from "../models/performance/taskScoreConfig.model.js";
+import PerfMetricsConfig from "../models/performance/perfMetricsConfig.model.js";
+import StandardWorkingHour from "../models/attendance/standardWorkingHour.model.js";
+import Performance from "../models/performance/performance.model.js";
+import Attendance from "../models/attendance/attendance.model.js";
 import Payslip from "../models/payslip.model.js";
-import Settings from "../models/setting.model.js";
-import Attendance from "../models/attendance.model.js";
-import jwt from "jsonwebtoken";
-import Notification from "../models/notification.model.js";
-import { generateInvoiceId } from "../util/generateInvoice.js";
 
-
+//------auth related controllers------//
 
 
 export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
@@ -81,10 +75,6 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
-
-
-//------auth related controllers------//
 
 
 
@@ -304,20 +294,17 @@ export const approveOrRejectDeleteRequest = catchAsyncErrors(async (req, res, ne
 
 
 //------message related controllers------//
-
-
-export const getInboxMessages = async (req, res) => {
+export const getInboxMessages = catchAsyncErrors(async (req, res) => {
   try {
     const inbox = await Message.find({ recipient: req.user.id })
       .sort({ createdAt: -1 })
-      .populate('user', 'name email');
+      .populate('sender', 'name email');
 
     res.status(200).json({ messages: inbox });
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
-};
-
+});
 
 
 //------feedback related controllers------//
@@ -364,6 +351,8 @@ export const getAllFeedbackMessages = catchAsyncErrors(async (req, res, next) =>
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
 
 
 
@@ -713,76 +702,28 @@ export const getAllMeetingTypes = catchAsyncErrors(async (req, res, next) => {
 
 
 
-
-export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
-  const {
-    fullName,
-    leaveType,
-    startDate,
-    endDate,
-    reason,
-    comment
-  } = req.body;
-
+//------attendence,leave related controllers------//
+export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next) => {
   try {
-    if (!fullName || !leaveType || !startDate || !endDate || !reason) {
-      return next(new ErrorHandler("Please fill all required fields", 400));
-    }
+    const leaves = await Leave.find().populate("user", "email role").lean();
 
-    const employee = await Employee.findOne({ fullName });
-    if (!employee) {
-      return next(new ErrorHandler("Employee not found", 404));
-    }
+    const enrichedLeaves = await Promise.all(
+      leaves.map(async (leave) => {
+        const employee = await Employee.findOne({
+          user: leave.user._id,
+        }).select("fullName");
+        return {
+          ...leave,
+          fullName: employee?.fullName || "N/A",
+        };
+      })
+    );
 
-    // ✅ Robust date parser for dd-mm-yyyy
-    const toDate = (dateStr) => {
-      const parts = dateStr.split("-");
-      if (parts.length !== 3) return null;
-
-      const [dd, mm, yyyy] = parts;
-
-      if (
-        isNaN(dd) || isNaN(mm) || isNaN(yyyy) ||
-        dd.length !== 2 || mm.length !== 2 || yyyy.length !== 4
-      ) {
-        return null;
-      }
-
-      const date = new Date(`${yyyy}-${mm}-${dd}`);
-      return isNaN(date.getTime()) ? null : date;
-    };
-
-    // ✅ Parse and validate dates
-    const parsedStartDate = toDate(startDate);
-    const parsedEndDate = toDate(endDate);
-
-    if (!parsedStartDate || !parsedEndDate) {
-      return next(
-        new ErrorHandler("Invalid date format. Use DD-MM-YYYY (e.g., 01-08-2025).", 400)
-      );
-    }
-
-    const leave = await Leave.create({
-      user: employee._id,
-      leaveType,
-      startDate: parsedStartDate,
-      endDate: parsedEndDate,
-      reason,
-      comment,
-      createdAt: new Date(),
-      reviewedBy: null,
-      reviewedAt: null,
-      status: "Approved"
-    });
-
-
-
-    res.status(201).json({
+    res.status(200).json({
       success: true,
       message: "Leave request submitted by Admin/HR.",
-      leave
+      leaves: enrichedLeaves
     });
-
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
@@ -919,49 +860,57 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
+  const {
+    name,
+    leaveType,
+    startDate,
+    endDate,
+    reason,
+    comment
+  } = req.body;
+  try {
+
+    if (!name || !leaveType || !startDate || !endDate || !reason) {
+      return next(new ErrorHandler("Please fill all required fields", 400));
+    }
 
 
+    const employee = await Employee.findOne({ name });
+    if (!employee) {
+      return next(new ErrorHandler("Employee not found", 404));
+    }
 
-export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next) => {
-  const leaves = await Leave.find()
-    .populate({
-      path: "user",
-      model: "Employee", 
-      select: "fullName employeeId "
-    })
-    .lean();
 
-  const formattedLeaves = leaves.map((leave) => {
-    const duration =
-      Math.floor(
-        (new Date(leave.endDate) - new Date(leave.startDate)) / (1000 * 60 * 60 * 24)
-      ) + 1;
-
-    return {
-      employeeId: leave.user?.employeeId || "N/A",
-      fullName: leave.user?.fullName || "N/A",
-      leaveType: leave.leaveType,
-      from: new Date(leave.startDate).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      to: new Date(leave.endDate).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      duration: `${duration} day${duration > 1 ? "s" : ""}`,
-      status: leave.status,
+    const toDate = (dateStr) => {
+      const [dd, mm, yy] = dateStr.split("-");
+      return new Date(`20${yy}-${mm}-${dd}`);
     };
-  });
 
-  res.status(200).json({
-    success: true,
-    count: formattedLeaves.length,
-    leaves: formattedLeaves,
-  });
+    const leave = await Leave.create({
+      user: name,
+      leaveType,
+      startDate: toDate(startDate),
+      endDate: toDate(endDate),
+      reason,
+      comment,
+      createdAt: new Date(),
+      reviewedBy: null,
+      reviewedAt: null,
+      status: "Pending"
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Leave request submitted by Admin/HR.",
+      leave
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
 });
+
+
 
 
 
@@ -974,221 +923,121 @@ export const generatePayrollTable = catchAsyncErrors(async (req, res, next) => {
   if (!month || month < 1 || month > 12 || !year || year < 2000) {
     return res.status(400).json({ success: false, message: "Invalid month or year" });
   }
-
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0); // last day of month
-
-
-  const employees = await Employee.find()
-    .populate("user")
-    .populate("position");
-
-
-  const userIds = employees.map(emp => emp.user._id);
-  const employeeIds = employees.map(emp => emp._id);
-
-  const attendanceRecords = await Attendance.find({
-    user: { $in: userIds },
-    date: { $gte: startDate, $lte: endDate }
-  });
-
-
-  const attendanceMap = {};
-  attendanceRecords.forEach(att => {
-    if (!attendanceMap[att.user]) attendanceMap[att.user] = [];
-    attendanceMap[att.user].push(att);
-  });
-
-  const leaveRecords = await Leave.find({
-    user: { $in: employeeIds },
-    status: "Approved",
-    startDate: { $lte: endDate },
-    endDate: { $gte: startDate }
-  });
-
-  // Group leave by employeeId
-  const leaveMap = {};
-  leaveRecords.forEach(lv => {
-    if (!leaveMap[lv.user]) leaveMap[lv.user] = [];
-    leaveMap[lv.user].push(lv);
-  });
-
-
-  const salaryRecords = await Salary.aggregate([
-    { $match: { user: { $in: userIds } } },
-    { $sort: { createdAt: -1 } },
-    {
-      $group: {
-        _id: "$user",
-        basic: { $first: "$basic" },
-        allowances: { $first: "$allowances" },
-        deductions: { $first: "$deductions" }
-      }
-    }
-  ]);
-
-  const salaryMap = {};
-  salaryRecords.forEach(s => {
-    salaryMap[s._id.toString()] = s;
-  });
-
-  // Fetch all payslips for the month & year
-  const payslips = await Payslip.find({ month, year, employee: { $in: employeeIds } });
-  const payslipMap = {};
-  payslips.forEach(p => {
-    payslipMap[p.employee.toString()] = p;
-  });
-
-  const payrollList = [];
-
-  for (const emp of employees) {
-    const userId = emp.user._id.toString();
-    const empId = emp._id.toString();
-
-
-    const userAttendance = attendanceMap[userId] || [];
-    let present = 0, absent = 0;
-    userAttendance.forEach(att => {
-      if (["Present", "Late", "Work From Home"].includes(att.status)) present++;
-      if (att.status === "Absent") absent++;
-    });
-
-    const userLeaves = leaveMap[empId] || [];
-    let leaveCount = 0;
-    userLeaves.forEach(lv => {
-      const from = new Date(Math.max(lv.startDate, startDate));
-      const to = new Date(Math.min(lv.endDate, endDate));
-      leaveCount += Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
-    });
-
-
-    const salary = salaryMap[userId] || {};
-    const basicSalary = salary.basic || 0;
-    const allowances = salary.allowances || 0;
-    const deductions = salary.deductions || 0;
-    const netAmount = basicSalary + allowances - deductions;
-
-    let payslip = payslipMap[empId];
-    let invoiceId;
-
-    if (!payslip) {
-      invoiceId = await generateInvoiceId(year, month);
-
-      payslip = new Payslip({
-        employee: emp._id,
-        month,
-        year,
-        attendance: { present, absent, onLeave: leaveCount },
-        earnings: {
-          basic: basicSalary,
-          hra: 0,
-          vehiclePetrol: 0,
-          medicalAllowance: 0,
-        },
-        deductions: {
-          professionalTax: 0,
-          tds: 0,
-          pf: 0,
-          attendanceDeduction: 0,
-        },
-        grossSalary: basicSalary + allowances,
-        totalDeductions: deductions,
-        netSalary: netAmount,
-        invoiceId,
-      });
-
-      await payslip.save();
-    } else {
-      invoiceId = payslip.invoiceId;
-    }
-
-    payrollList.push({
-      employeeName: emp.fullName,
-      designation: emp.position?.title || "-",
-      invoiceId,
-      attendance: { present, absent, leave: leaveCount },
-      basicSalary,
-      allowances,
-      deductions,
-      netAmount,
-      status: payslip.paymentStatus || "Pending"
-    });
-  }
-
-  return res.status(200).json({ success: true, data: payrollList });
 });
 
+export const editAttendence = catchAsyncErrors(async (req, res, next) => {
+  const loggedInUserId = req.user.id
+  const { attId } = req.params
+  const { date, status, punchInTime, punchOutTime, locationType, notes } = req.body;
 
-export const markSalaryAsPaid = catchAsyncErrors(async (req, res) => {
-  const payslipId = req.params.id;
-
-  const payslip = await Payslip.findById(payslipId);
-  if (!payslip) {
-    return res.status(404).json({ message: "Payslip not found" });
+  const attendance = await Attendance.findById(attId)
+  if (!attendance) {
+    return next(new ErrorHandler("Attendance record not found", 404));
   }
 
-  payslip.paymentStatus = "Paid";
-  payslip.paymentDate = new Date();
+  attendance.date = date ? new Date(date) : attendance.date
+  attendance.punchInDate = punchInTime ? new Date(`${date}T${punchInTime}`) : attendance.punchInDate
+  attendance.punchOutDate = punchOutTime ? new Date(`${date}T${punchOutTime}`) : attendance.punchOutDate
 
-  await payslip.save();
+  attendance.status = status ?? attendance.status
+  attendance.locationType = locationType ?? attendance.locationType
+  attendance.notes = notes ?? attendance.notes
+  attendance.updatedBy = loggedInUserId
 
-  return res.status(200).json({ success: true, message: "Salary marked as paid", payslip });
-});
+  await attendance.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Attendance updated successfully",
+    attendance,
+  })
+})
 
 
 //------performance related controllers------//
+// export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
+//   try {
+
+//     const employees = await Employee.find();
 
 
+//     const results = await Promise.all(
+//       employees.map(async (emp) => {
+//         const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
+//           .sort({ updatedAt: -1 })
+//           .lean();
+
+//         return {
+//           employeeName: emp.fullName,
+//           position: emp.position,
+//           performanceScore: evaluation ? evaluation.performanceScore : null,
+//           scores: evaluation ? evaluation.scores : null,
+//           notes: evaluation ? evaluation.notes : null,
+//           lastUpdated: evaluation ? evaluation.updatedAt : null,
+//           employeeId: emp._id,
+//         };
+//       })
+//     );
+
+//     res.status(200).json({ success: true, data: results });
+//   } catch (error) {
+//     return next(new ErrorHandler(error.message, 400));
+//   }
+// });
+
+// export const saveEvaluation = async (req, res, next) => {
+//   try {
+//     const { employeeId } = req.params;
+//     const evaluatorId = req.user.id;
+//     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
+
+//     const performanceScore = (
+//       (workQuality + productivity + reliability + teamwork + innovation) / 5
+//     ).toFixed(2);
 
 
+//     let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
 
+//     if (evaluation) {
 
-export const getPerformanceEvaluations = catchAsyncErrors(async (req, res) => {
-  try {
-    const employees = await Employee.find().populate("user");
+//       evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
+//       evaluation.notes = notes;
+//       evaluation.performanceScore = performanceScore;
+//       await evaluation.save();
+//     } else {
 
+//       evaluation = await PerformanceEvaluation.create({
+//         employee: employeeId,
+//         evaluator: evaluatorId,
+//         scores: { workQuality, productivity, reliability, teamwork, innovation },
+//         notes,
+//         performanceScore,
+//       });
+//     }
 
+//     res.status(200).json({ success: true, evaluation });
+//   } catch (error) {
+//     return next(new ErrorHandler(error.message, 400));
+//   }
+// };
 
-    const performanceRecords = await Performance.find({
-      employee: { $in: employees.map((e) => e._id) },
-    });
+export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
+  const { empId } = req.params;
+  const loggedInUserId = req.user.id
+  const { scores, notes } = req.body; //scores=[{metricName, score}]
 
-    const performanceMap = {};
-    performanceRecords.forEach((record) => {
-      performanceMap[record.employee.toString()] = record;
-    });
+  const employee = await Employee.findById(empId);
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
+  }
 
-    const data = employees.map((emp) => {
-      const perf = performanceMap[emp._id.toString()] || {};
+  const evaluator = await User.findById(loggedInUserId);
+  if (!evaluator || (evaluator.role !== 'admin' && evaluator.role !== 'hr')) {
+    return next(new ErrorHandler("You are not authorize to add performance review.Only Admin or HR can do that", 403));
+  }
 
-      const score = perf.performanceScore || 0;
-      let scoreLabel = "Average";
-
-      if (score >= 4.5) scoreLabel = "Outstanding";
-      else if (score >= 4.0) scoreLabel = "Excellent";
-      else if (score >= 3.0) scoreLabel = "Good";
-      else if (score >= 2.0) scoreLabel = "Fair";
-      else scoreLabel = "Poor";
-
-      return {
-        id: emp._id,
-        name: emp.fullName,
-        title: emp.position?.title || "Employee",
-        performanceScore: {
-          score: score.toFixed(1),
-          label: scoreLabel,
-        },
-        workQuality: perf.workQuality || 0,
-        productivity: perf.productivity || 0,
-        reliability: perf.reliability || 0,
-        lastUpdated: perf.updatedAt || emp.updatedAt,
-      };
-    });
-
-    res.status(200).json({ success: true, data });
-  } catch (error) {
-    console.error("Performance fetch error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+  if (!scores || !Array.isArray(scores) || scores.length === 0) {
+    return next(new ErrorHandler("Scores are required and should be an non-empty array", 400));
   }
 });
 
@@ -1213,6 +1062,9 @@ export const getAllPerformance = catchAsyncErrors(async (req, res) => {
 
   res.status(200).json({ success: true, data });
 });
+
+
+
 
 
 

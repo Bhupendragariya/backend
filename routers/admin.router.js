@@ -12,9 +12,7 @@ import {
   deleteDepartment,
   deleteMeetingType,
   deletePosition,
-  getAllEmployeeCards,
-
-  getAllFeedbackMessages,
+  editAttendence,
   getAllDepartments,
   getAllMeetingTypes,
   getAllPositions,
@@ -53,10 +51,12 @@ import {
   getAllEmployeeAttendance,
   getAttendanceByFilter,
   generatePayrollTable,
-  markSalaryAsPaid,
-  getPerformanceEvaluations,
+  // markSalaryAsPaid,
+  // getPerformanceEvaluations,
   savePerformance,
   getAllPerformance,
+  getAllFeedbackMessages,
+  getAllEmployeeCards,
  
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
@@ -81,15 +81,22 @@ router.post("/addEmployee",
   ]),
   addEmployee);
 
-router.get(
-  "/leave-detailed",
+router.put(
+  "/editAttendence/:attId",
   authenticate,
-  authorize(["Admin"]),
+  authorize(["admin"]),
+  editAttendence
+);
+
+router.get(
+  "/leaveDetailed",
+  authenticate,
+  authorize(["admin"]),
   getLeavesWithEmployeeName
 );
 
 router.put(
-  "/leave-approveLeave/:leaveId",
+  "/leaveApproveLeave/:leaveId",
   authenticate,
   authorize(["Admin"]),
   reviewLeave
@@ -180,7 +187,7 @@ router.get("/getAttendanceByFilter", authenticate, authorize(["Admin"]), getAtte
 
 router.get("/payroll", authenticate, authorize(["Admin"]), generatePayrollTable);
 
-router.get("/salaryAsPaid", authenticate, authorize(["Admin"]), markSalaryAsPaid);
+// router.get("/salaryAsPaid", authenticate, authorize(["Admin"]), markSalaryAsPaid);
 
 
 
@@ -211,11 +218,11 @@ router.post(
 
 
 
-router.get(
-  "/performance",
-  authenticate,
-  authorize(["Admin"]),
-  getPerformanceEvaluations);
+// router.get(
+//   "/performance",
+//   authenticate,
+//   authorize(["Admin"]),
+//   getPerformanceEvaluations);
 
 
 router.get(
