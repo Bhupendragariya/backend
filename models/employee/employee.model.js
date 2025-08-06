@@ -65,12 +65,12 @@ const employeeSchema = new mongoose.Schema(
       default: 'Uttarakhand'
     },
 
-    department: {    //hr,design,it/development,marketing,sales
+    department: {  
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
       required: true,
     },
-    position: {      //web developer,hr manager,data analyst,ui/ux designer,graphic designer,intern
+    position: {      
       type: mongoose.Schema.Types.ObjectId,
       ref: "Position",
       required: true,

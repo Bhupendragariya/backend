@@ -4,8 +4,8 @@ import mongoose from "mongoose";
 const leaveTypeSchema = new mongoose.Schema({
   name: { //annual leave,sick leave,casual leave,maternity leave,privelage leave,wfh,earned leave
     type: String,
+    enum: ["Sick Leave", "Earned Leave", "Casual Leave", "Maternity Leave", "Other"],
     required: [true, 'Leave type name is required'],
-    trim: true,
   },
   type: {
     type: String,

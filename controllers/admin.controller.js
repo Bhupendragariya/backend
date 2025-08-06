@@ -22,6 +22,7 @@ import StandardWorkingHour from "../models/attendance/standardWorkingHour.model.
 import Performance from "../models/performance/performance.model.js";
 import Attendance from "../models/attendance/attendance.model.js";
 import Payslip from "../models/payslip.model.js";
+import LeaveType from "../models/leave/leaveType.model.js";
 
 //------auth related controllers------//
 
@@ -294,6 +295,21 @@ export const approveOrRejectDeleteRequest = catchAsyncErrors(async (req, res, ne
 
 
 //------message related controllers------//
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export const getInboxMessages = catchAsyncErrors(async (req, res) => {
   try {
     const inbox = await Message.find({ recipient: req.user.id })
@@ -305,9 +321,6 @@ export const getInboxMessages = catchAsyncErrors(async (req, res) => {
     return next(new ErrorHandler(error.message, 400));
   }
 });
-
-
-//------feedback related controllers------//
 
 
 export const markFeedbackAsRead = catchAsyncErrors(async (req, res, next) => {
@@ -351,6 +364,18 @@ export const getAllFeedbackMessages = catchAsyncErrors(async (req, res, next) =>
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -702,35 +727,45 @@ export const getAllMeetingTypes = catchAsyncErrors(async (req, res, next) => {
 
 
 
-//------attendence,leave related controllers------//
+
+
 export const getLeavesWithEmployeeName = catchAsyncErrors(async (req, res, next) => {
-  try {
-    const leaves = await Leave.find().populate("user", "email role").lean();
+  const leaves = await Leave.find()
+    .populate({
+      path: 'user',
+      populate: {
+        path: 'user',
+        model: 'User',
+        select: 'email role',
+      },
+    })
+    .populate({
+      path: 'leaveType',
+      select: 'name',
+    })
+    .lean();
 
-    const enrichedLeaves = await Promise.all(
-      leaves.map(async (leave) => {
-        const employee = await Employee.findOne({
-          user: leave.user._id,
-        }).select("fullName");
-        return {
-          ...leave,
-          fullName: employee?.fullName || "N/A",
-        };
-      })
-    );
+  const formattedLeaves = leaves.map((leave) => {
+    const employee = leave.user;
+    const userInfo = employee?.user;
 
-    res.status(200).json({
-      success: true,
-      message: "Leave request submitted by Admin/HR.",
-      leaves: enrichedLeaves
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
-  }
+    return {
+      id: leave._id,
+      name: employee?.fullName || 'N/A',
+      leaveType: leave.leaveType?.name || 'N/A',
+      from: leave.startDate,
+      to: leave.endDate,
+      duration: leave.durationInDays || 'N/A',
+      status: leave.status,
+    };
+  });
+
+  res.status(200).json({
+    success: true,
+    count: formattedLeaves.length,
+    leaves: formattedLeaves,
+  });
 });
-
-
-
 
 
 export const getAllEmployeeAttendance = async (req, res) => {
@@ -860,55 +895,92 @@ export const reviewLeave = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+export const getLeaveTypeNamesEnum = (req, res) => {
+  const leaveTypeNameEnum = LeaveType.schema.path('name').enumValues;
+  res.status(200).json({ leaveTypeNames: leaveTypeNameEnum });
+};
+
+// GET /employees
+export const getEmployees = catchAsyncErrors(async (req, res, next) => {
+  const employees = await Employee.find({});
+  if (!employees) {
+    return next(new ErrorHandler('No employees found', 404));
+  }
+  res.status(200).json({ employees });
+});
+
+
+
+
+
+
+
+
 export const createLeaveByAdmin = catchAsyncErrors(async (req, res, next) => {
   const {
-    name,
-    leaveType,
+    fullName,
+    leaveType,   // This will be the name, e.g. "Sick Leave"
     startDate,
     endDate,
     reason,
-    comment
+    comment,
   } = req.body;
-  try {
 
-    if (!name || !leaveType || !startDate || !endDate || !reason) {
-      return next(new ErrorHandler("Please fill all required fields", 400));
-    }
-
-
-    const employee = await Employee.findOne({ name });
-    if (!employee) {
-      return next(new ErrorHandler("Employee not found", 404));
-    }
-
-
-    const toDate = (dateStr) => {
-      const [dd, mm, yy] = dateStr.split("-");
-      return new Date(`20${yy}-${mm}-${dd}`);
-    };
-
-    const leave = await Leave.create({
-      user: name,
-      leaveType,
-      startDate: toDate(startDate),
-      endDate: toDate(endDate),
-      reason,
-      comment,
-      createdAt: new Date(),
-      reviewedBy: null,
-      reviewedAt: null,
-      status: "Pending"
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Leave request submitted by Admin/HR.",
-      leave
-    });
-  } catch (error) {
-    return next(new ErrorHandler(error.message, 400));
+  if (!fullName || !leaveType || !startDate || !endDate || !reason) {
+    return next(new ErrorHandler("Please fill all required fields", 400));
   }
+
+  // Find employee by fullName (trimmed)
+  const employee = await Employee.findOne({ fullName: fullName.trim() });
+  if (!employee) {
+    return next(new ErrorHandler("Employee not found", 404));
+  }
+
+  // Find LeaveType by name (case-insensitive)
+  const leaveTypeDoc = await LeaveType.findOne({
+    name: { $regex: `^${leaveType.trim()}$`, $options: 'i' }
+  });
+  if (!leaveTypeDoc) {
+    return next(new ErrorHandler("Leave type not found", 404));
+  }
+
+  // Parse date strings "dd-mm-yyyy" into JS Date objects
+  const parseDate = (dateStr) => {
+    const [dd, mm, yyyy] = dateStr.split("-");
+    return new Date(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+
+  if (start > end) {
+    return next(new ErrorHandler("Start date cannot be after end date", 400));
+  }
+
+  const durationInDays = ((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Create leave
+  const leave = await Leave.create({
+    user: employee._id,
+    leaveType: leaveTypeDoc._id,
+    startDate: start,
+    endDate: end,
+    reason,
+    comment,
+    durationInDays: durationInDays.toString(),
+    status: "Approved",
+  });
+
+  // Populate leaveType with its details (including name)
+  const populatedLeave = await leave.populate('leaveType', 'name type totalLeaveDays').execPopulate();
+
+  res.status(201).json({
+    success: true,
+    message: "Leave request submitted successfully by Admin/HR.",
+    leave: populatedLeave,
+  });
 });
+
 
 
 
@@ -1305,32 +1377,54 @@ export const addDepartment = catchAsyncErrors(async (req, res, next) => {
     message: "Department added successfully",
     department
   });
-})
+});
+
+
+export const getDepartments = catchAsyncErrors(async (req, res, next) => {
+  const departments = await Department.find().sort({ name: 1 }); // Sort alphabetically
+
+  res.status(200).json({
+    success: true,
+    departments,
+  });
+});
+
+
+
+
 
 export const deleteDepartment = catchAsyncErrors(async (req, res, next) => {
-  const { deptId } = req.params;
-  if (!deptId) {
+  const { id } = req.params;  
+
+  if (!id) {
     return next(new ErrorHandler("Department ID is required", 400));
   }
 
-  const department = await Department.findById(deptId);
+  const department = await Department.findById(id);
   if (!department) {
     return next(new ErrorHandler("Department not found", 404));
   }
 
-  // Remove department from employees and set to null
   await Employee.updateMany(
-    { department: deptId },
+    { department: id },
     { $set: { department: null } }
-  )
+  );
 
-  await Department.findByIdAndDelete(deptId);
+  
+  await Department.findByIdAndDelete(id);
 
   res.status(200).json({
     success: true,
     message: "Department deleted successfully and all employees' departments set to null"
   });
-})
+});
+
+
+
+
+
+
+
 
 export const getAllDepartments = catchAsyncErrors(async (req, res, next) => {
   const departments = await Department.find();
@@ -1340,6 +1434,9 @@ export const getAllDepartments = catchAsyncErrors(async (req, res, next) => {
     departments
   });
 });
+
+
+
 
 export const addPosition = catchAsyncErrors(async (req, res, next) => {
   const loggedInUserId = req.user.id
@@ -1366,6 +1463,9 @@ export const addPosition = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
+
+
+
 export const deletePosition = catchAsyncErrors(async (req, res, next) => {
   const { posId } = req.params;
   if (!posId) {
@@ -1377,7 +1477,6 @@ export const deletePosition = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Position not found", 404));
   }
 
-  // Remove position from employees and set to null
   await Employee.updateMany(
     { position: posId },
     { $set: { position: null } }
@@ -1391,6 +1490,8 @@ export const deletePosition = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
+
+
 export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
   const positions = await Position.find();
 
@@ -1400,7 +1501,10 @@ export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
-//------settings related controllers------//
+
+
+
+
 export const getEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
   let empIdConfig = await EmpIdConfig.findOne();
 
@@ -1478,6 +1582,8 @@ export const setStandardWorkingHour = catchAsyncErrors(async (req, res, next) =>
     standardWorkingHour
   });
 })
+
+
 
 export const getReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
   let reviewCycleConfig = await ReviewCycleConfig.findOne();

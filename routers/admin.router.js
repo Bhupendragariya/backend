@@ -19,7 +19,7 @@ import {
   getEmpIdConfig,
   getEmployeePerformance,
   getInboxMessages,
-  getLeavesWithEmployeeName,
+ 
   getPerfMetricsConfig,
   getReviewCycleConfig,
   getStandardWorkingHour,
@@ -57,6 +57,10 @@ import {
   getAllPerformance,
   getAllFeedbackMessages,
   getAllEmployeeCards,
+  getLeavesWithEmployeeName,
+  getDepartments,
+  getEmployees,
+  getLeaveTypeNamesEnum,
  
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
@@ -89,11 +93,26 @@ router.put(
 );
 
 router.get(
-  "/leaveDetailed",
+  "/employees",
   authenticate,
-  authorize(["admin"]),
+  authorize(["Admin"]),
+  getEmployees
+)
+
+router.get(
+  "/leaveTypesenum",
+  authenticate,
+  authorize(["Admin"]),
+  getLeaveTypeNamesEnum
+)
+
+router.get(
+  "/leave-detailed",
+  authenticate,
+  authorize(["Admin"]),
   getLeavesWithEmployeeName
-);
+)
+
 
 router.put(
   "/leaveApproveLeave/:leaveId",
@@ -148,6 +167,7 @@ router.get(
   authorize(["Admin"]),
   getAllFeedbackMessages
 );
+
 
 
 router.get(
@@ -239,8 +259,16 @@ router.post(
   addDepartment
 )
 
+
+router.get(
+  "/getDepartments",
+  authenticate,
+  authorize(["Admin"]),
+  getDepartments
+)
+
 router.delete(
-  "/deleteDepartment/:deptId",
+  "/deleteDepartment/:id",
   authenticate,
   authorize(["Admin"]),
   deleteDepartment
