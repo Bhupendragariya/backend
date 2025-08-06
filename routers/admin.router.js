@@ -36,26 +36,47 @@ import {
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
+import validate from "../middlewares/validate.js";
+import { loginSchema, registerSchema } from "../validations/userValidation.js";
+import { addMeetingSchema, addMeetingTypeSchema } from "../validations/meetingValidation.js";
+import { addEmployeeSchema } from "../validations/employeeValidation.js";
+import { editAttendanceSchema } from "../validations/attendanceValidation.js";
 
 const router = Router();
 
-router.post("/registerUser", registerUser);
+router.post(
+  "/registerUser",
+  validate(registerSchema),
+  registerUser
+);
 
-router.post("/loginUser", loginUser);
+router.post(
+  "/loginUser",
+  validate(loginSchema),
+  loginUser
+);
 
-//empIdProof,empPhoto,emp10PassCert,emp12PassCert,empGradCert,empExpCert
 router.post("/addEmployee",
   authenticate,
   authorize(["admin"]),
   upload.fields([
-    { name: 'empPhoto' }, { name: 'empIdProof' }, { name: 'emp10PassCert' }, { name: 'emp12PassCert' }, { name: 'empGradCert' }, { name: 'empExpCert' }
+    { name: 'empPhoto' },
+    { name: 'empIdProof' },
+    { name: 'emp10PassCert' },
+    { name: 'emp12PassCert' },
+    { name: 'empGradCert' },
+    { name: 'empExpCert' }
   ]),
-  addEmployee);
+  validate(addEmployeeSchema),
+  addEmployee
+);
 
+//----------leave,attendance--------------
 router.put(
   "/editAttendence/:attId",
   authenticate,
   authorize(["admin"]),
+  validate(editAttendanceSchema),
   editAttendence
 );
 
@@ -73,6 +94,8 @@ router.put(
   reviewLeave
 );
 
+
+//----------doc--------------
 router.put(
   "/documentUpdateRequest/:docId",
   authenticate,
@@ -87,13 +110,7 @@ router.delete(
   approveOrRejectDeleteRequest
 );
 
-router.get(
-  '/messages/inbox',
-  authenticate,
-  authorize(["admin"]),
-  getInboxMessages
-);
-
+//----------depatment,position--------------
 router.get(
   "/getAllDepartments",
   authenticate,
@@ -136,10 +153,12 @@ router.delete(
   deletePosition
 )
 
+//----------meeting--------------
 router.post(
   "/addMeeting",
   authenticate,
   authorize(["admin"]),
+  // validate(addMeetingSchema),
   createMeeting
 );
 
@@ -147,6 +166,7 @@ router.get(
   "/allMeetings",
   authenticate,
   authorize(["admin"]),
+  validate(addMeetingTypeSchema),
   getUserMeetings
 );
 
@@ -171,7 +191,37 @@ router.delete(
   deleteMeetingType
 )
 
-//emp settings
+//----------performance--------------
+router.post(
+  "/reviewPerformance/:empId",
+  authenticate,
+  authorize(['admin']),
+  reviewPerformance
+)
+
+router.get(
+  "/getEmployeePerformance/:empId",
+  authenticate,
+  authorize(["admin"]),
+  getEmployeePerformance
+)
+
+router.get(
+  "/getAllEmployeePerformance",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeePerformance
+)
+
+//----------message--------------
+router.get(
+  '/messages/inbox',
+  authenticate,
+  authorize(["admin"]),
+  getInboxMessages
+);
+
+//----------emp settings--------------
 router.get(
   "/getEmpIdConfig",
   authenticate,
@@ -200,7 +250,7 @@ router.post(
   setStandardWorkingHour
 )
 
-//perf settings
+//----------performance settings--------------
 router.get(
   "/getReviewCycleConfig",
   authenticate,
@@ -243,25 +293,6 @@ router.post(
   setPerfMetricsConfig
 )
 
-router.post(
-  "/reviewPerformance/:empId",
-  authenticate,
-  authorize(['admin']),
-  reviewPerformance
-)
 
-router.get(
-  "/getEmployeePerformance/:empId",
-  authenticate,
-  authorize(["admin"]),
-  getEmployeePerformance
-)
-
-router.get(
-  "/getAllEmployeePerformance",
-  authenticate,
-  authorize(["admin"]),
-  getAllEmployeePerformance
-)
 
 export default router;

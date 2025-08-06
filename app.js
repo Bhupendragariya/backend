@@ -3,15 +3,11 @@ import dotenv from "dotenv";
 import cookieParser from 'cookie-parser';
 import cors from "cors";
 import { dbConnection } from "./config/dbconnection.js";
-import hrRouter from "./routers/hr.router.js"
 import adminRouter from "./routers/admin.router.js"
 import employeeRouter from "./routers/employee.router.js"
 import { errorMiddleware } from "./middlewares/errorMiddlewares.js";
 
-
-
 dotenv.config()
-
 
 
 const app = express()
@@ -28,20 +24,17 @@ app.get("/", (req, res) => {
     res.send("Welcome to NovaNectar API");
 })
 
-app.use("/api/v1/hr", hrRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/employee", employeeRouter);
 
 
 
-
 const PORT = process.env.PORT || 4000
-
-
 
 app.use(errorMiddleware);
 
 dbConnection()
+
 app.listen(PORT, () => {
     console.log(`Server is listening on http://localhost:${PORT}`);
 })

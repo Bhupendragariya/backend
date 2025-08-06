@@ -27,11 +27,11 @@ export const registerUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
   try {
-    if (!email || !password || !role) {
-      return next(
-        new ErrorHandler("Please provide name, email, password and role", 400)
-      );
-    }
+    // if (!email || !password || !role) {
+    //   return next(
+    //     new ErrorHandler("Please provide name, email, password and role", 400)
+    //   );
+    // }
 
     const existingUser = await User.findOne({ email });
 
@@ -63,9 +63,9 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
   try {
-    if (!email || !password || !role) {
-      return next(new ErrorHandler("please provide email and password", 400));
-    }
+    // if (!email || !password || !role) {
+    //   return next(new ErrorHandler("please provide email and password", 400));
+    // }
 
     const user = await User.findOne({ email }).select("+password");
 
@@ -756,14 +756,14 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   } = req.body
 
   //bio and deductions are optional
-  if (
-    !fullName || !fatherName || !email || !contactNo || !emgContactName || !emgContactNo ||
-    !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
-    !bankName || !accountNumber || !ifscCode ||
-    !basic || !salaryCycle || !allowances || !netSalary
-  ) {
-    return next(new ErrorHandler("Please provide all required fields.", 400));
-  }
+  // if (
+  //   !fullName || !fatherName || !email || !contactNo || !emgContactName || !emgContactNo ||
+  //   !joinedOn || !department || !position || !currentAddress || !permanentAddress ||
+  //   !bankName || !accountNumber || !ifscCode ||
+  //   !basic || !salaryCycle || !allowances || !netSalary
+  // ) {
+  //   return next(new ErrorHandler("Please provide all required fields.", 400));
+  // }
 
   //emp id config
   const empIdConfig = await EmpIdConfig.findOne();
