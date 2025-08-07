@@ -1798,6 +1798,8 @@ const convertToWords = (num) => {
 };
 
 
+
+
 export const getAllEmployeeCards = catchAsyncErrors(async (req, res, next) => {
   const payslips = await Payslip.find()
     .populate({
@@ -1853,6 +1855,8 @@ export const getAllEmployeeCards = catchAsyncErrors(async (req, res, next) => {
     employees: formatted
   });
 });
+
+
 
 
 
