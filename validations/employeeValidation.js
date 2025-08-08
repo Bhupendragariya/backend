@@ -2,7 +2,6 @@ import Joi from "joi";
 
 export const addEmployeeSchema = Joi.object({
   fullName: Joi.string().trim().required(),
-  fatherName: Joi.string().trim(),
   employeeId: Joi.string().trim().optional(), // optional if auto-generate
   email: Joi.string().email().required(),
   contactNo: Joi.number().required(),

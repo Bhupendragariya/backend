@@ -3,36 +3,35 @@ import {
   addDepartment,
   addEmployee,
   addMeetingType,
+  addMetric,
   addPosition,
   approveOrRejectDeleteRequest,
   approveOrRejectUpdateRequest,
   createMeeting,
   deleteDepartment,
   deleteMeetingType,
+  deleteMetric,
   deletePosition,
   editAttendence,
   getAllDepartments,
   getAllEmployeePerformance,
   getAllMeetingTypes,
+  getAllMetrics,
   getAllPositions,
-  getEmpIdConfig,
+  getEmployeeConfig,
   getEmployeePerformance,
   getInboxMessages,
   getLeavesWithEmployeeName,
-  getPerfMetricsConfig,
-  getReviewCycleConfig,
-  getStandardWorkingHour,
-  getTaskScoreConfig,
+  getMetricById,
+  getPerformanceConfig,
   getUserMeetings,
   loginUser,
   registerUser,
   reviewLeave,
   reviewPerformance,
-  setEmpIdConfig,
-  setPerfMetricsConfig,
-  setReviewCycleConfig,
-  setStandardWorkingHour,
-  setTaskScoreConfig,
+  setEmployeeConfig,
+  setPerformanceConfig,
+  updateMetric,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -222,75 +221,138 @@ router.get(
 );
 
 //----------emp settings--------------
+// router.get(
+//   "/getEmpIdConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getEmpIdConfig
+// )
+
+// router.post(
+//   "/setEmpIdConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setEmpIdConfig
+// )
+
+// router.get(
+//   "/getStandardWorkingHour",
+//   authenticate,
+//   authorize(["admin"]),
+//   getStandardWorkingHour
+// )
+
+// router.post(
+//   "/setStandardWorkingHour",
+//   authenticate,
+//   authorize(["admin"]),
+//   setStandardWorkingHour
+// )
+
 router.get(
-  "/getEmpIdConfig",
+  "/getEmployeeConfig",
   authenticate,
   authorize(["admin"]),
-  getEmpIdConfig
+  getEmployeeConfig
 )
 
 router.post(
-  "/setEmpIdConfig",
+  "/setEmployeeConfig",
   authenticate,
   authorize(["admin"]),
-  setEmpIdConfig
-)
-
-router.get(
-  "/getStandardWorkingHour",
-  authenticate,
-  authorize(["admin"]),
-  getStandardWorkingHour
-)
-
-router.post(
-  "/setStandardWorkingHour",
-  authenticate,
-  authorize(["admin"]),
-  setStandardWorkingHour
+  setEmployeeConfig
 )
 
 //----------performance settings--------------
+// router.get(
+//   "/getReviewCycleConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getReviewCycleConfig
+// )
+
+// router.post(
+//   "/setReviewCycleConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setReviewCycleConfig
+// )
+
+// router.get(
+//   "/getTaskScoreConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getTaskScoreConfig
+// )
+
+// router.post(
+//   "/setTaskScoreConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setTaskScoreConfig
+// )
+
+// router.get(
+//   "/getPerfMetricsConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getPerfMetricsConfig
+// )
+
+// router.post(
+//   "/setPerfMetricsConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setPerfMetricsConfig
+// )
+
 router.get(
-  "/getReviewCycleConfig",
+  "/getPerformanceConfig",
   authenticate,
   authorize(["admin"]),
-  getReviewCycleConfig
+  getPerformanceConfig
 )
 
 router.post(
-  "/setReviewCycleConfig",
+  "/setPerformanceConfig",
   authenticate,
   authorize(["admin"]),
-  setReviewCycleConfig
+  setPerformanceConfig
 )
 
 router.get(
-  "/getTaskScoreConfig",
+  "/getAllMetrics",
   authenticate,
   authorize(["admin"]),
-  getTaskScoreConfig
-)
-
-router.post(
-  "/setTaskScoreConfig",
-  authenticate,
-  authorize(["admin"]),
-  setTaskScoreConfig
+  getAllMetrics
 )
 
 router.get(
-  "/getPerfMetricsConfig",
+  "/getMetric/:metricId",
   authenticate,
   authorize(["admin"]),
-  getPerfMetricsConfig
+  getMetricById,
 )
 
 router.post(
-  "/setPerfMetricsConfig",
+  "/addMetric",
   authenticate,
   authorize(["admin"]),
-  setPerfMetricsConfig
+  addMetric
+)
+
+router.put(
+  "/updateMetric/:metricId",
+  authenticate,
+  authorize(["admin"]),
+  updateMetric
+)
+
+router.delete(
+  "/deleteMetric/:metricId",
+  authenticate,
+  authorize(["admin"]),
+  deleteMetric
 )
 
 

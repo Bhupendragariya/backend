@@ -12,7 +12,7 @@ const performanceSchema = new mongoose.Schema({
     required: true,
   },
   scores: [{
-    metricName: { type: String }, // e.g., taskCompletionRate, qualityScore
+    metricName: { type: String }, //Task Completion Rate, Quality Score
     score: { type: Number }
   }],
   notes: {
