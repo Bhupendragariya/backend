@@ -25,7 +25,7 @@ import {
   getLeavesWithEmployeeName,
   getMetricById,
   getPerformanceConfig,
-  getUserMeetings,
+  // getUserMeetings,
   loginUser,
   markFeedbackAsRead,
   registerUser,
@@ -34,6 +34,14 @@ import {
   setEmployeeConfig,
   setPerformanceConfig,
   updateMetric,
+  getLeaveTypeNamesEnum,
+  getEmployees,
+  getDepartments,
+  createLeaveType,
+  updateLeaveType,
+  updateCarryForwardRules,
+  updateLeaveRules,
+  getAllEmployeePerformance,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
@@ -52,7 +60,7 @@ router.post(
 );
 
 router.post(
-  "/loginUser",
+  "/login",
   validate(loginSchema),
   loginUser
 );
@@ -130,6 +138,7 @@ router.delete(
 );
 
 //----------depatment,position--------------
+
 router.get(
   "/getAllDepartments",
   authenticate,
@@ -189,13 +198,14 @@ router.post(
   createMeeting
 );
 
-router.get(
-  "/allMeetings",
-  authenticate,
-  authorize(["admin"]),
-  validate(addMeetingTypeSchema),
-  getUserMeetings
-);
+// router.get(
+//   "/allMeetings",
+//   authenticate,
+//   authorize(["admin"]),
+//   validate(addMeetingTypeSchema),
+//   getUserMeetings
+
+// );
 
 router.get(
   "/getAllMeetingTypes",
@@ -218,7 +228,8 @@ router.delete(
   deleteMeetingType
 )
 
-//----------performance--------------
+
+
 router.post(
   "/createLeaveType",
   authenticate,

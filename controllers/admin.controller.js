@@ -45,40 +45,38 @@ export const refreshAccessToken = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Invalid or expired refresh token", 401));
   }
 
-
-  
   const user = await User.findById(decoded.id).select("+refreshToken");
 
   if (!user) {
     return next(new ErrorHandler("User not found", 404));
   }
 
-
   if (user.refreshToken !== token) {
-    return next(new ErrorHandler("Refresh token mismatch", 402));
-  };
+    return next(new ErrorHandler("Refresh token mismatch", 403)); // 402 is not standard for this
+  }
 
-   console.log("mis mach", token);
-    console.log("mis mach", user.refreshToken);
+  // ✅ Generate new tokens
+  const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user.id);
 
+  // ✅ Update user with new refresh token
+  user.refreshToken = newRefreshToken;
+  await user.save();
 
- const { accessToken, refreshToken: newRefreshToken } = await generateAccessAndRefreshTokens(user.id);
-
-
-
-
+  // ✅ Set new refresh token in cookie
   res.cookie("refreshToken", newRefreshToken, {
     httpOnly: true,
-    sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, 
+    sameSite: "Lax", // or "Strict" if you want more protection
+    secure: process.env.NODE_ENV === "production", // use secure cookie in production
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
+  // ✅ Send new access token in response
   res.status(200).json({
-    message: "Access token refreshed",
+    success: true,
     accessToken,
-    user
   });
 });
+
 
 
 
@@ -120,12 +118,13 @@ export const registerUser = catchAsyncErrors(async (req, res, next) => {
 });
 
 export const loginUser = catchAsyncErrors(async (req, res, next) => {
+  
   const { email, password, role } = req.body;
 
   try {
-    // if (!email || !password || !role) {
-    //   return next(new ErrorHandler("please provide email and password", 400));
-    // }
+    if (!email || !password || !role) {
+      return next(new ErrorHandler("please provide email and password", 400));
+    }
 
     const user = await User.findOne({ email }).select("+password");
 
@@ -171,11 +170,14 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
       message: "Login successfully",
       accessToken,
       user,
+      
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, 400));
   }
 });
+
+
 
 
 
@@ -1030,72 +1032,76 @@ export const editAttendence = catchAsyncErrors(async (req, res, next) => {
 })
 
 
-//------performance related controllers------//
-// export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
-//   try {
-
-//     const employees = await Employee.find();
+// ------performance related controllers------//
 
 
-//     const results = await Promise.all(
-//       employees.map(async (emp) => {
-//         const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
-//           .sort({ updatedAt: -1 })
-//           .lean();
-
-//         return {
-//           employeeName: emp.fullName,
-//           position: emp.position,
-//           performanceScore: evaluation ? evaluation.performanceScore : null,
-//           scores: evaluation ? evaluation.scores : null,
-//           notes: evaluation ? evaluation.notes : null,
-//           lastUpdated: evaluation ? evaluation.updatedAt : null,
-//           employeeId: emp._id,
-//         };
-//       })
-//     );
-
-//     res.status(200).json({ success: true, data: results });
-//   } catch (error) {
-//     return next(new ErrorHandler(error.message, 400));
-//   }
-// });
-
-// export const saveEvaluation = async (req, res, next) => {
-//   try {
-//     const { employeeId } = req.params;
-//     const evaluatorId = req.user.id;
-//     const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
-
-//     const performanceScore = (
-//       (workQuality + productivity + reliability + teamwork + innovation) / 5
-//     ).toFixed(2);
 
 
-//     let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
+export const getAllEmployeePerformance = catchAsyncErrors(async (req, res, next) => {
+  try {
 
-//     if (evaluation) {
+    const employees = await Employee.find();
 
-//       evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
-//       evaluation.notes = notes;
-//       evaluation.performanceScore = performanceScore;
-//       await evaluation.save();
-//     } else {
 
-//       evaluation = await PerformanceEvaluation.create({
-//         employee: employeeId,
-//         evaluator: evaluatorId,
-//         scores: { workQuality, productivity, reliability, teamwork, innovation },
-//         notes,
-//         performanceScore,
-//       });
-//     }
+    const results = await Promise.all(
+      employees.map(async (emp) => {
+        const evaluation = await PerformanceEvaluation.findOne({ employee: emp._id })
+          .sort({ updatedAt: -1 })
+          .lean();
 
-//     res.status(200).json({ success: true, evaluation });
-//   } catch (error) {
-//     return next(new ErrorHandler(error.message, 400));
-//   }
-// };
+        return {
+          employeeName: emp.fullName,
+          position: emp.position,
+          performanceScore: evaluation ? evaluation.performanceScore : null,
+          scores: evaluation ? evaluation.scores : null,
+          notes: evaluation ? evaluation.notes : null,
+          lastUpdated: evaluation ? evaluation.updatedAt : null,
+          employeeId: emp._id,
+        };
+      })
+    );
+
+    res.status(200).json({ success: true, data: results });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+});
+
+export const saveEvaluation = async (req, res, next) => {
+  try {
+    const { employeeId } = req.params;
+    const evaluatorId = req.user.id;
+    const { workQuality, productivity, reliability, teamwork, innovation, notes } = req.body;
+
+    const performanceScore = (
+      (workQuality + productivity + reliability + teamwork + innovation) / 5
+    ).toFixed(2);
+
+
+    let evaluation = await PerformanceEvaluation.findOne({ employee: employeeId, });
+
+    if (evaluation) {
+
+      evaluation.scores = { workQuality, productivity, reliability, teamwork, innovation };
+      evaluation.notes = notes;
+      evaluation.performanceScore = performanceScore;
+      await evaluation.save();
+    } else {
+
+      evaluation = await PerformanceEvaluation.create({
+        employee: employeeId,
+        evaluator: evaluatorId,
+        scores: { workQuality, productivity, reliability, teamwork, innovation },
+        notes,
+        performanceScore,
+      });
+    }
+
+    res.status(200).json({ success: true, evaluation });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 400));
+  }
+};
 
 export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
   const { empId } = req.params;
@@ -1131,6 +1137,25 @@ export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
     totalOfMaxScore,
     averageScore,
     percentageScore
+  };
+
+  // Save performance review
+  const performanceReview = await Performance.create({
+    employee: empId,
+    evaluator: loggedInUserId,
+    scores,
+    notes,
+    performanceScore: averageScore,
+    percentageScore,
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Performance review submitted successfully",
+    minScorePerTask: performanceConfig.minScore,
+    maxScorePerTask: performanceConfig.maxScore,
+    performanceReview
+  });
 });
 
 
@@ -1203,13 +1228,7 @@ export const savePerformance = catchAsyncErrors(async (req, res) => {
     performanceReview
   })
 })
-  res.status(200).json({ success: true, performance: record.toObject() });
-});
-
-
-
-
-
+ 
 
 
 
@@ -1245,7 +1264,6 @@ export const getEmployeePerformance = catchAsyncErrors(async (req, res, next) =>
 
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
-    fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
     fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
     //bank details
     bankName, accountNumber, ifscCode,
@@ -1538,82 +1556,82 @@ export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
 
 
 export const getEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
-  let empIdConfig = await EmpIdConfig.findOne();
+  let empIdConfig = await EmployeeConfig.findOne();
 
-//   if (!empIdConfig) {
-//     empIdConfig = await EmpIdConfig.create({});
-//   }
+  if (!empIdConfig) {
+    empIdConfig = await EmpIdConfig.create({});
+  }
 
-//   res.status(200).json({
-//     success: true,
-//     empIdConfig
-//   });
-// })
+  res.status(200).json({
+    success: true,
+    empIdConfig
+  });
+})
 
-// export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
-//   const { autoGenerate, idPrefix, idNumberLength } = req.body;
+export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
+  const { autoGenerate, idPrefix, idNumberLength } = req.body;
 
-//   let empIdConfig = await EmpIdConfig.findOne();
+  let empIdConfig = await EmployeeConfig.findOne();
 
-//   if (!empIdConfig) {
-//     empIdConfig = await EmpIdConfig.create({
-//       autoGenerate,
-//       idPrefix,
-//       idNumberLength
-//     });
-//   } else {
-//     empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
-//     empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
-//     empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
-//     await empIdConfig.save();
-//   }
+  if (!empIdConfig) {
+    empIdConfig = await EmpIdConfig.create({
+      autoGenerate,
+      idPrefix,
+      idNumberLength
+    });
+  } else {
+    empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
+    empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
+    empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
+    await empIdConfig.save();
+  }
 
-//   res.status(200).json({
-//     success: true,
-//     message: "Employee ID configuration set successfully",
-//     empIdConfig
-//   });
-// })
+  res.status(200).json({
+    success: true,
+    message: "Employee ID configuration set successfully",
+    empIdConfig
+  });
+})
 
-// export const getStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
-//   let standardWorkingHours = await StandardWorkingHour.findOne();
+export const getStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
+  let standardWorkingHours = await StandardWorkingHour.findOne();
 
-//   if (!standardWorkingHours) {
-//     standardWorkingHours = await StandardWorkingHour.create({});
-//   }
+  if (!standardWorkingHours) {
+    standardWorkingHours = await StandardWorkingHour.create({});
+  }
 
-//   res.status(200).json({
-//     success: true,
-//     standardWorkingHours
-//   });
-// })
+  res.status(200).json({
+    success: true,
+    standardWorkingHours
+  });
+})
 
-// export const setStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
-//   const { startTime, endTime, breakDurationInMin, weeklyHours } = req.body;
+export const setStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
+  const { startTime, endTime, breakDurationInMin, weeklyHours } = req.body;
 
-//   let standardWorkingHour = await StandardWorkingHour.findOne()
+  let standardWorkingHour = await StandardWorkingHour.findOne()
 
-//   if (!standardWorkingHour) {
-//     standardWorkingHour = await StandardWorkingHour.create({
-//       startTime,
-//       endTime,
-//       breakDurationInMin,
-//       weeklyHours
-//     })
-//   } else {
-//     standardWorkingHour.startTime = startTime ?? standardWorkingHour.startTime;
-//     standardWorkingHour.endTime = endTime ?? standardWorkingHour.endTime;
-//     standardWorkingHour.breakDurationInMin = breakDurationInMin ?? standardWorkingHour.breakDurationInMin;
-//     standardWorkingHour.weeklyHours = weeklyHours ?? standardWorkingHour.weeklyHours;
-//     await standardWorkingHour.save()
-//   }
+  if (!standardWorkingHour) {
+    standardWorkingHour = await StandardWorkingHour.create({
+      startTime,
+      endTime,
+      breakDurationInMin,
+      weeklyHours
+    })
+  } else {
+    standardWorkingHour.startTime = startTime ?? standardWorkingHour.startTime;
+    standardWorkingHour.endTime = endTime ?? standardWorkingHour.endTime;
+    standardWorkingHour.breakDurationInMin = breakDurationInMin ?? standardWorkingHour.breakDurationInMin;
+    standardWorkingHour.weeklyHours = weeklyHours ?? standardWorkingHour.weeklyHours;
+    await standardWorkingHour.save()
+  }
 
-//   res.status(200).json({
-//     success: true,
-//     message: "Standard Working Hour configuration set successfully",
-//     standardWorkingHour
-//   });
-// })
+  res.status(200).json({
+    success: true,
+    message: "Standard Working Hour configuration set successfully",
+    standardWorkingHour
+  });
+})
 
 export const getEmployeeConfig = catchAsyncErrors(async (req, res, next) => {
   let employeeConfig = await EmployeeConfig.findOne();
@@ -1890,6 +1908,7 @@ export const getMetricById = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+
 export const addMetric = catchAsyncErrors(async (req, res, next) => {
   const { name, isEnabled } = req.body;
 
@@ -1900,6 +1919,19 @@ export const addMetric = catchAsyncErrors(async (req, res, next) => {
   const existing = await Metric.findOne({ name });
   if (existing) {
     return next(new ErrorHandler("Metric with this name already exists", 400));
+  }
+
+  const metric = await Metric.create({ name, isEnabled });
+
+  res.status(201).json({
+    success: true,
+    message: "Metric created successfully",
+    metric
+  });
+});
+
+
+
 export const getPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
   let config = await PerfMetricsConfig.findOne();
 
@@ -1932,12 +1964,12 @@ export const setPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
 
   res.status(201).json({
     success: true,
-    message: "Metric created successfully",
-    metric
     message: "Performance metrics updated",
     perfMetricConfig: config,
+    metric
+
   });
-});
+  
 });
 
 
@@ -1966,6 +1998,10 @@ export const updateMetric = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
+
+
+
+
 export const deleteMetric = catchAsyncErrors(async (req, res, next) => {
   const { metricId } = req.params;
 
@@ -1975,6 +2011,18 @@ export const deleteMetric = catchAsyncErrors(async (req, res, next) => {
   }
 
   await metric.deleteOne();
+
+  res.status(200).json({
+    success: true,
+    message: "Metric deleted successfully",
+  });
+});
+
+
+
+
+
+
 export const getSinglePayslip = catchAsyncErrors(async (req, res, next) => {
   const payslipId = req.params.id;
 
@@ -2190,6 +2238,8 @@ export const getSettings = catchAsyncErrors(async (req, res, next) => {
 });
 
 
+
+
 export const saveGeneralSettings = catchAsyncErrors(async (req, res, next) => {
   const {
    companyInfo,
@@ -2303,7 +2353,6 @@ export const updateSettings = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: "Metric deleted successfully"
     message: "Settings updated successfully",
     data: settings,
   });
@@ -2515,6 +2564,14 @@ export const updateLeaveRules = catchAsyncErrors(async (req, res, next) => {
     blockHolidays,
   } = req.body;
 
+  // Optional: Validate leaveTypeId format (if using MongoDB)
+  if (!mongoose.Types.ObjectId.isValid(leaveTypeId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid leave type ID",
+    });
+  }
+
   const leaveType = await LeaveType.findById(leaveTypeId);
 
   if (!leaveType) {
@@ -2524,6 +2581,7 @@ export const updateLeaveRules = catchAsyncErrors(async (req, res, next) => {
     });
   }
 
+  // Update the leave rules
   leaveType.leaveRules = {
     minimumAdvanceNotice,
     maximumConsecutiveDays,
@@ -2539,3 +2597,4 @@ export const updateLeaveRules = catchAsyncErrors(async (req, res, next) => {
     leaveType,
   });
 });
+

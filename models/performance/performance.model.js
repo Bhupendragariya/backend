@@ -24,8 +24,8 @@ const performanceSchema = new mongoose.Schema({
     totalOfMaxScore: { type: Number },
     percentageScore: { type: Number },
     averageScore: { type: Number },
-  },
-  { timestamps: true }
+  }
+}, { timestamps: true }
 );
 
 const Performance = mongoose.model("Performance", performanceSchema);
