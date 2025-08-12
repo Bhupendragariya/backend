@@ -3,6 +3,7 @@ import {
   addDepartment,
   addEmployee,
   addMeetingType,
+  addMetric,
   addPosition,
   approveOrRejectDeleteRequest,
   approveOrRejectUpdateRequest,
@@ -11,89 +12,72 @@ import {
 
   deleteDepartment,
   deleteMeetingType,
+  deleteMetric,
   deletePosition,
   editAttendence,
   getAllDepartments,
   getAllMeetingTypes,
+  getAllMetrics,
   getAllPositions,
-  getEmpIdConfig,
+  getEmployeeConfig,
   getEmployeePerformance,
   getInboxMessages,
- 
-  getPerfMetricsConfig,
-  getReviewCycleConfig,
-  getStandardWorkingHour,
-  getTaskScoreConfig,
-  getSinglePayslip,
-  getUnreadFeedbackCount,
+  getLeavesWithEmployeeName,
+  getMetricById,
+  getPerformanceConfig,
+  getUserMeetings,
   loginUser,
   markFeedbackAsRead,
   registerUser,
   reviewLeave,
-
-  setEmpIdConfig,
-  saveGeneralSettings,
-  getSettings,
-  updateSettings,
-  logoutAdmin,
-  updatePayrollSettings,
-  setPerfMetricsConfig,
-  setReviewCycleConfig,
-  setStandardWorkingHour,
-  setTaskScoreConfig,
-  refreshAccessToken,
-  getAllMeetings,
-  deleteMeeting,
-  getEmployeeStatus,
-  getEmployeesList,
-  getEmployeeById,
-  getEmployeeStatsall,
-  getAllEmployeeAttendance,
-  getAttendanceByFilter,
-  generatePayrollTable,
-  // markSalaryAsPaid,
-  // getPerformanceEvaluations,
-  savePerformance,
-  getAllPerformance,
-  getAllFeedbackMessages,
-  getAllEmployeeCards,
-  getLeavesWithEmployeeName,
-  getDepartments,
-  getEmployees,
-  getLeaveTypeNamesEnum,
-  getAllLeaveTypes,
-  createLeaveType,
-  updateLeaveType,
-  updateCarryForwardRules,
-  updateLeaveRules,
- 
+  reviewPerformance,
+  setEmployeeConfig,
+  setPerformanceConfig,
+  updateMetric,
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
-
-
-
-
+import validate from "../middlewares/validate.js";
+import { loginSchema, registerSchema } from "../validations/userValidation.js";
+import { addMeetingSchema, addMeetingTypeSchema } from "../validations/meetingValidation.js";
+import { addEmployeeSchema } from "../validations/employeeValidation.js";
+import { editAttendanceSchema } from "../validations/attendanceValidation.js";
 
 const router = Router();
 
-router.post("/registerUser", registerUser);
+router.post(
+  "/registerUser",
+  validate(registerSchema),
+  registerUser
+);
 
-router.post("/login", loginUser);
-
+router.post(
+  "/loginUser",
+  validate(loginSchema),
+  loginUser
+);
 
 router.post("/addEmployee",
   authenticate,
   authorize(["Admin"]),
   upload.fields([
-    { name: 'empPhoto' }, { name: 'empIdProof' }, { name: 'emp10PassCert' }, { name: 'emp12PassCert' }, { name: 'empGradCert' }, { name: 'empExpCert' }
+    { name: 'empPhoto' },
+    { name: 'empIdProof' },
+    { name: 'emp10PassCert' },
+    { name: 'emp12PassCert' },
+    { name: 'empGradCert' },
+    { name: 'empExpCert' }
   ]),
-  addEmployee);
+  validate(addEmployeeSchema),
+  addEmployee
+);
 
+//----------leave,attendance--------------
 router.put(
   "/editAttendence/:attId",
   authenticate,
   authorize(["admin"]),
+  validate(editAttendanceSchema),
   editAttendence
 );
 
@@ -126,6 +110,8 @@ router.put(
   reviewLeave
 );
 
+
+//----------doc--------------
 router.put(
   "/documentUpdateRequest/:docId",
   authenticate,
@@ -143,113 +129,7 @@ router.delete(
  approveOrRejectUpdateRequest,
 );
 
-router.get(
-  '/messages/inbox',
-  authenticate,
-  authorize(["Admin"]),
-  getInboxMessages
-);
-
-
-
-router.get(
-  "/feedbackRead",
-  authenticate,
-  authorize(["Admin"]),
-  markFeedbackAsRead
-);
-
-router.get(
-  "/UnreadFeedbackCount",
-  authenticate,
-  authorize(["Admin"]),
-  getUnreadFeedbackCount
-);
-
-router.get(
-  "/AllFeedbackMessages",
-  authenticate,
-  authorize(["Admin"]),
-  getAllFeedbackMessages
-);
-
-
-
-router.get(
-  "/getSinglePayslip",
-  authenticate,
-  authorize(["Admin"]),
-  getSinglePayslip
-);
-
-router.get(
-  "/getAllEmployee",
-  authenticate,
-  authorize(["Admin"]),
-  getAllEmployeeCards
-);
-
-router.post("/Meeting", authenticate, authorize(["Admin"]), createMeeting);
-
-router.get("/allMeetings", authenticate, authorize(["Admin"]), getAllMeetings);
-
-router.delete("/deleteMeting/:id", authenticate, authorize(["Admin"]), deleteMeeting);
-
-router.get("/dashboard/employee-count", authenticate, authorize(["Admin"]), getEmployeeStatsall);
-
-
-router.get("/getEmployeeStatus", authenticate, authorize(["Admin"]), getEmployeeStatus);
-
-
-router.get("/getEmployeesList", authenticate, authorize(["Admin"]), getEmployeesList);
-
-
-router.get("/employees/:id", authenticate, authorize(["Admin"]), getEmployeeById);
-
-router.get("/getAllAttendance", authenticate, authorize(["Admin"]), getAllEmployeeAttendance);
-
-router.get("/getAttendanceByFilter", authenticate, authorize(["Admin"]), getAttendanceByFilter);
-
-router.get("/payroll", authenticate, authorize(["Admin"]), generatePayrollTable);
-
-// router.get("/salaryAsPaid", authenticate, authorize(["Admin"]), markSalaryAsPaid);
-
-
-
-
-
-router.post(
-  "/createLeave",
-  authenticate,
-  authorize(["Admin"]),
-  createLeaveByAdmin
-);
-
-router.get(
-  "/getAllPerformance",
-  authenticate,
-  authorize(["Admin"]),
-  getAllPerformance);
-
-
-router.post(
-  "/savePerformance/:employeeId",
-  authenticate,
-  authorize(["Admin"]),
-  savePerformance);
-
-
-
-
-
-
-// router.get(
-//   "/performance",
-//   authenticate,
-//   authorize(["Admin"]),
-//   getPerformanceEvaluations);
-
-
+//----------depatment,position--------------
 router.get(
   "/getAllDepartments",
   authenticate,
@@ -300,7 +180,22 @@ router.delete(
   deletePosition
 )
 
+//----------meeting--------------
+router.post(
+  "/addMeeting",
+  authenticate,
+  authorize(["admin"]),
+  // validate(addMeetingSchema),
+  createMeeting
+);
 
+router.get(
+  "/allMeetings",
+  authenticate,
+  authorize(["admin"]),
+  validate(addMeetingTypeSchema),
+  getUserMeetings
+);
 
 router.get(
   "/getAllMeetingTypes",
@@ -323,87 +218,7 @@ router.delete(
   deleteMeetingType
 )
 
-//emp settings
-router.get(
-  "/getEmpIdConfig",
-  authenticate,
-  authorize(["Admin"]),
-  getEmpIdConfig
-)
-
-router.post(
-  "/setEmpIdConfig",
-  authenticate,
-  authorize(["Admin"]),
-  setEmpIdConfig
-)
-
-router.get(
-  "/getStandardWorkingHour",
-  authenticate,
-  authorize(["Admin"]),
-  getStandardWorkingHour
-)
-
-router.post(
-  "/setStandardWorkingHour",
-  authenticate,
-  authorize(["Admin"]),
-  setStandardWorkingHour
-)
-
-//perf settings
-router.get(
-  "/getReviewCycleConfig",
-  authenticate,
-  authorize(["Admin"]),
-  getReviewCycleConfig
-)
-
-router.post(
-  "/setReviewCycleConfig",
-  authenticate,
-  authorize(["Admin"]),
-  setReviewCycleConfig
-)
-
-router.get(
-  "/getTaskScoreConfig",
-  authenticate,
-  authorize(["Admin"]),
-  getTaskScoreConfig
-)
-
-router.post(
-  "/setTaskScoreConfig",
-  authenticate,
-  authorize(["Admin"]),
-  setTaskScoreConfig
-)
-
-router.get(
-  "/getPerfMetricsConfig",
-  authenticate,
-  authorize(["Admin"]),
-  getPerfMetricsConfig
-)
-
-router.post(
-  "/setPerfMetricsConfig",
-  authenticate,
-  authorize(["Admin"]),
-  setPerfMetricsConfig
-)
-
-
-router.get(
-  "/getAllLeaveTypes",
-  authenticate,
-  authorize(["Admin"]),
-  getAllLeaveTypes
-)
-
-
+//----------performance--------------
 router.post(
   "/createLeaveType",
   authenticate,
@@ -459,32 +274,155 @@ router.get(
   getEmployeePerformance
 )
 
+router.get(
+  "/getAllEmployeePerformance",
+  authenticate,
+  authorize(["admin"]),
+  getAllEmployeePerformance
+)
 
+//----------message--------------
+router.get(
+  '/messages/inbox',
+  authenticate,
+  authorize(["admin"]),
+  getInboxMessages
+);
 
+//----------emp settings--------------
+// router.get(
+//   "/getEmpIdConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getEmpIdConfig
+// )
 
+// router.post(
+//   "/setEmpIdConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setEmpIdConfig
+// )
 
-router.get("/getSettings", authenticate, authorize(["Admin"]), getSettings)
+// router.get(
+//   "/getStandardWorkingHour",
+//   authenticate,
+//   authorize(["admin"]),
+//   getStandardWorkingHour
+// )
 
-router.patch('/save', authenticate, authorize(["Admin"]), saveGeneralSettings);
+// router.post(
+//   "/setStandardWorkingHour",
+//   authenticate,
+//   authorize(["admin"]),
+//   setStandardWorkingHour
+// )
 
-router.patch('/attendance-settings', authenticate, authorize(["Admin"]), updateSettings);
+router.get(
+  "/getEmployeeConfig",
+  authenticate,
+  authorize(["admin"]),
+  getEmployeeConfig
+)
 
+router.post(
+  "/setEmployeeConfig",
+  authenticate,
+  authorize(["admin"]),
+  setEmployeeConfig
+)
 
-router.patch("/settings/payroll", authenticate, authorize(["Admin"]), updatePayrollSettings);
+//----------performance settings--------------
+// router.get(
+//   "/getReviewCycleConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getReviewCycleConfig
+// )
 
-router.get("/refresh",  refreshAccessToken);
+// router.post(
+//   "/setReviewCycleConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setReviewCycleConfig
+// )
 
+// router.get(
+//   "/getTaskScoreConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getTaskScoreConfig
+// )
 
+// router.post(
+//   "/setTaskScoreConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setTaskScoreConfig
+// )
 
-router.get("/logout", authenticate, authorize(["Admin"]), logoutAdmin);
+// router.get(
+//   "/getPerfMetricsConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   getPerfMetricsConfig
+// )
 
+// router.post(
+//   "/setPerfMetricsConfig",
+//   authenticate,
+//   authorize(["admin"]),
+//   setPerfMetricsConfig
+// )
 
+router.get(
+  "/getPerformanceConfig",
+  authenticate,
+  authorize(["admin"]),
+  getPerformanceConfig
+)
 
+router.post(
+  "/setPerformanceConfig",
+  authenticate,
+  authorize(["admin"]),
+  setPerformanceConfig
+)
 
+router.get(
+  "/getAllMetrics",
+  authenticate,
+  authorize(["admin"]),
+  getAllMetrics
+)
 
+router.get(
+  "/getMetric/:metricId",
+  authenticate,
+  authorize(["admin"]),
+  getMetricById,
+)
 
+router.post(
+  "/addMetric",
+  authenticate,
+  authorize(["admin"]),
+  addMetric
+)
 
+router.put(
+  "/updateMetric/:metricId",
+  authenticate,
+  authorize(["admin"]),
+  updateMetric
+)
 
+router.delete(
+  "/deleteMetric/:metricId",
+  authenticate,
+  authorize(["admin"]),
+  deleteMetric
+)
 
 
 

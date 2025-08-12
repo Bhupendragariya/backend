@@ -59,3 +59,5 @@ const salarySchema = new mongoose.Schema({
 const Salary = mongoose.model("Salary", salarySchema);
 
 export default Salary;
+
+//create pre schema to generate net salary if not provided from frontend

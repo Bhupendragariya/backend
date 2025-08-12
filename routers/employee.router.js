@@ -2,6 +2,8 @@ import { Router } from "express";
 import { addDocument, addOrUpdateBankAccount, applyLeave, changePassword, deleteDocument, updateDocument, employeeLogin, getEmployeeDashboard, getNotifications, getUnreadNotifications, markNotificationAsRead, submitResignation, sendMessageToUser, markMessageAsRead, updateProfileAndAddressInfo, getEmployeeDetails, getMyAttendance, getUserMeetings, generatePayslip, markAttendance, logoutUser, refreshAccessToken } from "../controllers/employee.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
 import upload from "../middlewares/multer.js";
+import validate from "../middlewares/validate.js";
+import { updateProfileAndAddressSchema } from "../validations/employeeValidation.js";
 
 
 
@@ -9,55 +11,123 @@ const router = Router();
 
 
 
-router.post("/login", employeeLogin);
+router.post(
+  "/employeeLogin",
+  employeeLogin
+);
 
-router.put("/changePassword", authenticate, authorize(["Employee"]), changePassword);
+router.put(
+  "/changePassword",
+  authenticate,
+  authorize(["employee"]),
+  changePassword
+);
 
-router.get("/getdashbord", authenticate, authorize(["Employee"]), getEmployeeDashboard);
+router.get(
+  "/getdashbord",
+  authenticate,
+  authorize(["employee"]),
+  getEmployeeDashboard
+);
 
-router.post("/createLeave", authenticate, authorize(["Employee"]), applyLeave);
+router.put(
+  "/updateProfileAndAddressInfo/:empId",
+  authenticate,
+  authorize(["employee"]),
+  upload.single('empPhoto'),
+  validate(updateProfileAndAddressSchema),
+  updateProfileAndAddressInfo
+)
 
-router.get("/notifications", authenticate, authorize(["Employee"]), getNotifications);
+router.get('/getEmployeeDetails/:empId',
+  authenticate,
+  authorize(["employee"]),
+  getEmployeeDetails
+)
 
-router.get("/MyAttendance", authenticate, authorize(["Employee"]), getMyAttendance);
+router.put(
+  "/updateBankAccount",
+  authenticate,
+  authorize(["employee"]),
+  addOrUpdateBankAccount
+);
 
-router.put("/notifications/:id/read", authenticate, authorize(["Employee"]), markNotificationAsRead);
+router.post(
+  "/submitResignation",
+  authenticate,
+  authorize(["employee"]),
+  submitResignation
+);
 
-router.get("/notifications/unread", authenticate, authorize(["Employee"]), getUnreadNotifications);
+//----------leave--------------
+router.post(
+  "/createLeave",
+  authenticate,
+  authorize(["employee"]),
+  applyLeave
+);
 
-router.get("/Meeting", authenticate, authorize(["Employee"]), getUserMeetings);
+//----------message,notification--------------
+router.post('/messages/send',
+  upload.single('file'),
+  sendMessageToUser
+);
 
-router.put("/updateBankAccount", authenticate, authorize(["employee"]), addOrUpdateBankAccount);
+router.put(
+  "/messages/:id/read",
+  authenticate,
+  authorize(["employee"]),
+  markMessageAsRead
+);
 
-router.post("submitResignation", authenticate, authorize(["employee"]), submitResignation);
+router.get(
+  "/notifications",
+  authenticate,
+  authorize(["employee"]),
+  getNotifications
+);
 
-router.post("/addDocument/:userId", authenticate, authorize(["employee"]), upload.single('empDocument'), addDocument);
+router.put(
+  "/notifications/:id/read",
+  authenticate,
+  authorize(["employee"]),
+  markNotificationAsRead
+);
 
-router.put("/:userId/updateDocument/:docId", authenticate, authorize(["employee"]), upload.single('empDocument'), updateDocument);
-
-router.delete("/deleteDocument/:userId/:docId", authenticate, authorize(["Employee"]), deleteDocument);
-router.delete("/:userId/deleteDocument/:docId", authenticate, authorize(["employee"]), deleteDocument)
-
-router.post('/messages/send',  authenticate, authorize(["Employee"]),  upload.single('file'), sendMessageToUser);
-
-router.put("/messages/:id/read", authenticate, authorize(["Employee"]), markMessageAsRead);
-
-router.get("/Payslip", authenticate, authorize(["Employee"]), generatePayslip);
-
-router.post("/attendance",  authenticate, authorize(["Employee"]),  markAttendance);
-
+router.get(
+  "/notifications/unread",
+  authenticate,
+  authorize(["employee"]),
+  getUnreadNotifications
+);
 
 
-router.get("/logout", authenticate, authorize(["Employee"]), logoutUser);
+//----------doc--------------
+router.post(
+  "/addDocument/:userId",
+  authenticate,
+  authorize(["employee"]),
+  upload.single('empDocument'),
+  addDocument
+);
+
+router.put(
+  "/:userId/updateDocument/:docId",
+  authenticate,
+  authorize(["employee"]),
+  upload.single('empDocument'),
+  updateDocument
+);
+
+router.delete(
+  "/:userId/deleteDocument/:docId",
+  authenticate,
+  authorize(["employee"]),
+  deleteDocument
+)
 
 
-router.get("/refresh", authenticate, authorize(["Employee"]), refreshAccessToken);
 
-router.put("/messages/:id/read", authenticate, authorize(["employee"]), markMessageAsRead);
-
-router.put("/updateProfileAndAddressInfo/:empId", authenticate, authorize(["employee"]), upload.single('empPhoto'), updateProfileAndAddressInfo)
-
-router.get('/getEmployeeDetails/:empId', authenticate, authorize(["employee"]), getEmployeeDetails)
 
 
 

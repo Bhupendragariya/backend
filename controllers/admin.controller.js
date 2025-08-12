@@ -14,13 +14,16 @@ import BankAccount from "../models/payroll/banckAccount.model.js";
 import Department from "../models/employee/department.model.js";
 import Position from "../models/employee/position.model.js";
 import MeetingType from "../models/meeting/meetingType.model.js";
-import EmpIdConfig from "../models/employee/empIdConfig.model.js";
-import ReviewCycleConfig from "../models/performance/reviewCycleConfig.model.js";
-import TaskScoreConfig from "../models/performance/taskScoreConfig.model.js";
-import PerfMetricsConfig from "../models/performance/perfMetricsConfig.model.js";
-import StandardWorkingHour from "../models/attendance/standardWorkingHour.model.js";
+// import EmpIdConfig from "../models/employee/empIdConfig.model.js";
+// import ReviewCycleConfig from "../models/performance/reviewCycleConfig.model.js";
+// import TaskScoreConfig from "../models/performance/taskScoreConfig.model.js";
+// import PerfMetricsConfig from "../models/performance/perfMetricsConfig.model.js";
+// import StandardWorkingHour from "../models/attendance/standardWorkingHour.model.js";
 import Performance from "../models/performance/performance.model.js";
 import Attendance from "../models/attendance/attendance.model.js";
+import PerformanceConfig from "../models/performance/performanceConfig.js";
+import Metric from "../models/performance/metric.model.js";
+import EmployeeConfig from "../models/employee/employeeConfig.js";
 import Payslip from "../models/payslip.model.js";
 import LeaveType from "../models/leave/leaveType.model.js";
 import Settings from "../models/setting.model.js";
@@ -84,11 +87,11 @@ export const registerUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
   try {
-    if (!email || !password || !role) {
-      return next(
-        new ErrorHandler("Please provide name, email, password and role", 400)
-      );
-    }
+    // if (!email || !password || !role) {
+    //   return next(
+    //     new ErrorHandler("Please provide name, email, password and role", 400)
+    //   );
+    // }
 
     const existingUser = await User.findOne({ email });
 
@@ -120,9 +123,9 @@ export const loginUser = catchAsyncErrors(async (req, res, next) => {
   const { email, password, role } = req.body;
 
   try {
-    if (!email || !password || !role) {
-      return next(new ErrorHandler("please provide email and password", 400));
-    }
+    // if (!email || !password || !role) {
+    //   return next(new ErrorHandler("please provide email and password", 400));
+    // }
 
     const user = await User.findOne({ email }).select("+password");
 
@@ -1112,6 +1115,22 @@ export const reviewPerformance = catchAsyncErrors(async (req, res, next) => {
   if (!scores || !Array.isArray(scores) || scores.length === 0) {
     return next(new ErrorHandler("Scores are required and should be an non-empty array", 400));
   }
+
+  const performanceConfig = await PerformanceConfig.findOne();
+  if (!performanceConfig) {
+    return next(new ErrorHandler("Performance Config not found", 404));
+  }
+
+  const sumOfScores = scores.reduce((acc, scoreObj) => acc + scoreObj.score, 0) //3+4+5=12
+  const totalOfMaxScore = scores.length * performanceConfig.maxScore //3*5=15
+  const percentageScore = (sumOfScores / totalOfMaxScore) * 100;// (12/15)*100=80
+  const averageScore = sumOfScores / scores.length; //12/3=4
+
+  const performanceScore = {
+    sumOfScores,
+    totalOfMaxScore,
+    averageScore,
+    percentageScore
 });
 
 
@@ -1176,6 +1195,14 @@ export const savePerformance = catchAsyncErrors(async (req, res) => {
     });
   }
 
+  res.status(201).json({
+    success: true,
+    message: "Performance review submitted successfully",
+    minScorePerTask: performanceConfig.minScore,
+    maxScorePerTask: performanceConfig.maxScore,
+    performanceReview
+  })
+})
   res.status(200).json({ success: true, performance: record.toObject() });
 });
 
@@ -1219,6 +1246,7 @@ export const getEmployeePerformance = catchAsyncErrors(async (req, res, next) =>
 export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   const {
     fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
+    fullName, employeeId, email, contactNo, emgContactName, emgContactNo, joinedOn, department, position, currentAddress, permanentAddress, bio,
     //bank details
     bankName, accountNumber, ifscCode,
     //salary details
@@ -1236,14 +1264,14 @@ export const addEmployee = catchAsyncErrors(async (req, res, next) => {
   }
 
   //emp id config
-  const empIdConfig = await EmpIdConfig.findOne();
+  const employeeConfig = await EmployeeConfig.findOne();
   let finalEmployeeId = employeeId;
 
-  if (empIdConfig?.autoGenerate) {
+  if (employeeConfig?.autoGenerate) {
     const count = await Employee.countDocuments();
     const month = String(new Date().getMonth() + 1).padStart(2, '0');
-    const idNumber = String(count + 1).padStart(empIdConfig.idNumberLength, '0');
-    finalEmployeeId = `${empIdConfig.idPrefix}/${month}/${idNumber}`;
+    const idNumber = String(count + 1).padStart(employeeConfig.idNumberLength, '0');
+    finalEmployeeId = `${employeeConfig.idPrefix}/${month}/${idNumber}`;
   }
 
   if (!finalEmployeeId) {
@@ -1502,6 +1530,9 @@ export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
   });
 })
 
+//------settings related controllers------//
+// export const getEmpConfig = catchAsyncErrors(async (req, res, next) => {
+//   let empIdConfig = await EmpIdConfig.findOne();
 
 
 
@@ -1509,160 +1540,366 @@ export const getAllPositions = catchAsyncErrors(async (req, res, next) => {
 export const getEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
   let empIdConfig = await EmpIdConfig.findOne();
 
-  if (!empIdConfig) {
-    empIdConfig = await EmpIdConfig.create({});
+//   if (!empIdConfig) {
+//     empIdConfig = await EmpIdConfig.create({});
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     empIdConfig
+//   });
+// })
+
+// export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
+//   const { autoGenerate, idPrefix, idNumberLength } = req.body;
+
+//   let empIdConfig = await EmpIdConfig.findOne();
+
+//   if (!empIdConfig) {
+//     empIdConfig = await EmpIdConfig.create({
+//       autoGenerate,
+//       idPrefix,
+//       idNumberLength
+//     });
+//   } else {
+//     empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
+//     empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
+//     empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
+//     await empIdConfig.save();
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Employee ID configuration set successfully",
+//     empIdConfig
+//   });
+// })
+
+// export const getStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
+//   let standardWorkingHours = await StandardWorkingHour.findOne();
+
+//   if (!standardWorkingHours) {
+//     standardWorkingHours = await StandardWorkingHour.create({});
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     standardWorkingHours
+//   });
+// })
+
+// export const setStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
+//   const { startTime, endTime, breakDurationInMin, weeklyHours } = req.body;
+
+//   let standardWorkingHour = await StandardWorkingHour.findOne()
+
+//   if (!standardWorkingHour) {
+//     standardWorkingHour = await StandardWorkingHour.create({
+//       startTime,
+//       endTime,
+//       breakDurationInMin,
+//       weeklyHours
+//     })
+//   } else {
+//     standardWorkingHour.startTime = startTime ?? standardWorkingHour.startTime;
+//     standardWorkingHour.endTime = endTime ?? standardWorkingHour.endTime;
+//     standardWorkingHour.breakDurationInMin = breakDurationInMin ?? standardWorkingHour.breakDurationInMin;
+//     standardWorkingHour.weeklyHours = weeklyHours ?? standardWorkingHour.weeklyHours;
+//     await standardWorkingHour.save()
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Standard Working Hour configuration set successfully",
+//     standardWorkingHour
+//   });
+// })
+
+export const getEmployeeConfig = catchAsyncErrors(async (req, res, next) => {
+  let employeeConfig = await EmployeeConfig.findOne();
+  if (!employeeConfig) {
+    employeeConfig = await EmployeeConfig.create({});
   }
 
   res.status(200).json({
     success: true,
-    empIdConfig
+    employeeConfig
   });
 })
 
-export const setEmpIdConfig = catchAsyncErrors(async (req, res, next) => {
-  const { autoGenerate, idPrefix, idNumberLength } = req.body;
+export const setEmployeeConfig = catchAsyncErrors(async (req, res, next) => {
+  const { autoGenerate, idPrefix, idNumberLength, startTime, endTime, breakDurationInMin, weeklyHours, deparmentIds, positionIds } = req.body;
 
-  let empIdConfig = await EmpIdConfig.findOne();
+  if (!Array.isArray(deparmentIds) || deparmentIds.length === 0) {
+    return next(new ErrorHandler("Department IDs must be a non-empty array", 400));
+  }
 
-  if (!empIdConfig) {
-    empIdConfig = await EmpIdConfig.create({
+  if (!Array.isArray(positionIds) || positionIds.length === 0) {
+    return next(new ErrorHandler("Position IDs must be a non-empty array", 400));
+  }
+
+  let employeeConfig = await EmployeeConfig.findOne();
+
+  if (!employeeConfig) {
+    employeeConfig = await EmployeeConfig.create({
       autoGenerate,
       idPrefix,
-      idNumberLength
-    });
-  } else {
-    empIdConfig.autoGenerate = autoGenerate ?? empIdConfig.autoGenerate;
-    empIdConfig.idPrefix = idPrefix ?? empIdConfig.idPrefix;
-    empIdConfig.idNumberLength = idNumberLength ?? empIdConfig.idNumberLength;
-    await empIdConfig.save();
-  }
-
-  res.status(200).json({
-    success: true,
-    message: "Employee ID configuration set successfully",
-    empIdConfig
-  });
-})
-
-export const getStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
-  let standardWorkingHours = await StandardWorkingHour.findOne();
-
-  if (!standardWorkingHours) {
-    standardWorkingHours = await StandardWorkingHour.create({});
-  }
-
-  res.status(200).json({
-    success: true,
-    standardWorkingHours
-  });
-})
-
-export const setStandardWorkingHour = catchAsyncErrors(async (req, res, next) => {
-  const { startTime, endTime, breakDurationInMin, weeklyHours } = req.body;
-
-  let standardWorkingHour = await StandardWorkingHour.findOne()
-
-  if (!standardWorkingHour) {
-    standardWorkingHour = await StandardWorkingHour.create({
+      idNumberLength,
       startTime,
       endTime,
       breakDurationInMin,
-      weeklyHours
+      weeklyHours,
+      departments: deparmentIds,
+      positions: positionIds
     })
   } else {
-    standardWorkingHour.startTime = startTime ?? standardWorkingHour.startTime;
-    standardWorkingHour.endTime = endTime ?? standardWorkingHour.endTime;
-    standardWorkingHour.breakDurationInMin = breakDurationInMin ?? standardWorkingHour.breakDurationInMin;
-    standardWorkingHour.weeklyHours = weeklyHours ?? standardWorkingHour.weeklyHours;
-    await standardWorkingHour.save()
+    employeeConfig.autoGenerate = autoGenerate ?? employeeConfig.autoGenerate;
+    employeeConfig.idPrefix = idPrefix ?? employeeConfig.idPrefix;
+    employeeConfig.idNumberLength = idNumberLength ?? employeeConfig.idNumberLength;
+    employeeConfig.startTime = startTime ?? employeeConfig.startTime;
+    employeeConfig.endTime = endTime ?? employeeConfig.endTime;
+    employeeConfig.breakDurationInMin = breakDurationInMin ?? employeeConfig.breakDurationInMin;
+    employeeConfig.weeklyHours = weeklyHours ?? employeeConfig.weeklyHours;
+    employeeConfig.departments = deparmentIds ?? employeeConfig.departments;
+    employeeConfig.positions = positionIds ?? employeeConfig.positions;
+    await employeeConfig.save();
   }
 
   res.status(200).json({
     success: true,
-    message: "Standard Working Hour configuration set successfully",
-    standardWorkingHour
+    message: "Employee configuration set successfully",
+    employeeConfig
   });
 })
 
 
 
-export const getReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
-  let reviewCycleConfig = await ReviewCycleConfig.findOne();
 
-  if (!reviewCycleConfig) {
-    reviewCycleConfig = await ReviewCycleConfig.create({});
+
+
+// export const getReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
+//   let reviewCycleConfig = await ReviewCycleConfig.findOne();
+
+//   if (!reviewCycleConfig) {
+//     reviewCycleConfig = await ReviewCycleConfig.create({});
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     reviewCycleConfig
+//   });
+// })
+
+// export const setReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
+//   const { reviewFrequency, reviewDayOfMonth, autoGenerateReviewForm } = req.body;
+
+//   let reviewCycleConfig = await ReviewCycleConfig.findOne();
+
+//   if (!reviewCycleConfig) {
+//     reviewCycleConfig = await ReviewCycleConfig.create({
+//       reviewFrequency,
+//       reviewDayOfMonth,
+//       autoGenerateReviewForm
+//     });
+//   }
+//   else {
+//     reviewCycleConfig.reviewFrequency = reviewFrequency ?? reviewCycleConfig.reviewFrequency;
+//     reviewCycleConfig.reviewDayOfMonth = reviewDayOfMonth ?? reviewCycleConfig.reviewDayOfMonth;
+//     reviewCycleConfig.autoGenerateReviewForm = autoGenerateReviewForm ?? reviewCycleConfig.autoGenerateReviewForm;
+//     await reviewCycleConfig.save();
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Review Cycle configuration set successfully",
+//     reviewCycleConfig
+//   });
+// })
+
+// export const getTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
+//   let taskScoreConfig = await TaskScoreConfig.findOne();
+
+//   if (!taskScoreConfig) {
+//     taskScoreConfig = await TaskScoreConfig.create({});
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     taskScoreConfig
+//   });
+// })
+
+// export const setTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
+//   const { minScore, maxScore } = req.body;
+
+//   let taskScoreConfig = await TaskScoreConfig.findOne();
+
+//   if (!taskScoreConfig) {
+//     taskScoreConfig = await TaskScoreConfig.create({
+//       minScore,
+//       maxScore,
+//     });
+//   }
+//   else {
+//     taskScoreConfig.minScore = minScore ?? taskScoreConfig.minScore;
+//     taskScoreConfig.maxScore = maxScore ?? taskScoreConfig.maxScore;
+//     await taskScoreConfig.save();
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Task Score configuration set successfully",
+//     taskScoreConfig
+//   });
+// })
+
+
+// export const getPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
+//   let perfMetricConfig = await PerfMetricsConfig.findOne();
+
+//   if (!perfMetricConfig) {
+//     perfMetricConfig = await PerfMetricsConfig.create({})
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     perfMetricConfig
+//   });
+// })
+
+// export const setPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
+//   const { metrics } = req.body; //[{name,fullName,enabled}]
+
+//   if (!Array.isArray(metrics) || metrics.length === 0) {
+//     return next(new ErrorHandler("Performance metrics must be a non-empty array", 400));
+//   }
+
+//   let perfMetricConfig = await PerfMetricsConfig.findOne();
+
+//   if (!perfMetricConfig) {
+//     perfMetricConfig = await PerfMetricsConfig.create({ metrics });
+//   } else {
+//     perfMetricConfig.metrics = metrics;
+//     await perfMetricConfig.save();
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Performance Metric configuration set successfully",
+//     perfMetricConfig
+//   });
+// });
+
+// export const getPerformanceConfig = catchAsyncErrors(async (req, res, next) => {
+//   let performanceConfig = await PerformanceConfig.findOne()
+
+//   if (!performanceConfig) {
+//     const ReviewCycleConfig = await ReviewCycleConfig.create({})
+//     const TaskScoreConfig = await TaskScoreConfig.create({})
+//     const PerfMetricsConfig = await PerfMetricsConfig.create({})
+
+//     performanceConfig = await PerformanceConfig.create({
+//       ReviewCycleConfig: ReviewCycleConfig._id,
+//       TaskScoreConfig: TaskScoreConfig._id,
+//       PerfMetricsConfig: PerfMetricsConfig._id
+//     })
+//   }
+
+//   performanceConfig = await PerformanceConfig.findById(performanceConfig._id)
+//     .populate('ReviewCycleConfig')
+//     .populate('TaskScoreConfig')
+//     .populate('PerfMetricsConfig');
+
+//   res.status(200).json({
+//     success: true,
+//     performanceConfig
+//   });
+// });
+
+export const getPerformanceConfig = catchAsyncErrors(async (req, res, next) => {
+  let performanceConfig = await PerformanceConfig.findOne()
+  if (!performanceConfig) {
+    performanceConfig = await PerformanceConfig.create({})
   }
 
   res.status(200).json({
     success: true,
-    reviewCycleConfig
+    performanceConfig
   });
 })
 
-export const setReviewCycleConfig = catchAsyncErrors(async (req, res, next) => {
-  const { reviewFrequency, reviewDayOfMonth, autoGenerateReviewForm } = req.body;
+export const setPerformanceConfig = catchAsyncErrors(async (req, res, next) => {
+  const { reviewFrequency, reviewDayOfMonth, isAutoGenerateReviewForm, minScore, maxScore, metricIds } = req.body; //metrics=>[{name,enabled}]
 
-  let reviewCycleConfig = await ReviewCycleConfig.findOne();
+  if (!Array.isArray(metricIds) || metricIds.length === 0) {
+    return next(new ErrorHandler("Performance metricIds must be a non-empty array", 400));
+  }
 
-  if (!reviewCycleConfig) {
-    reviewCycleConfig = await ReviewCycleConfig.create({
+  let performanceConfig = await PerformanceConfig.findOne();
+
+  if (!performanceConfig) {
+    performanceConfig = await PerformanceConfig.create({
       reviewFrequency,
       reviewDayOfMonth,
-      autoGenerateReviewForm
-    });
-  }
-  else {
-    reviewCycleConfig.reviewFrequency = reviewFrequency ?? reviewCycleConfig.reviewFrequency;
-    reviewCycleConfig.reviewDayOfMonth = reviewDayOfMonth ?? reviewCycleConfig.reviewDayOfMonth;
-    reviewCycleConfig.autoGenerateReviewForm = autoGenerateReviewForm ?? reviewCycleConfig.autoGenerateReviewForm;
-    await reviewCycleConfig.save();
-  }
-
-  res.status(200).json({
-    success: true,
-    message: "Review Cycle configuration set successfully",
-    reviewCycleConfig
-  });
-})
-
-export const getTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
-  let taskScoreConfig = await TaskScoreConfig.findOne();
-
-  if (!taskScoreConfig) {
-    taskScoreConfig = await TaskScoreConfig.create({});
-  }
-
-  res.status(200).json({
-    success: true,
-    taskScoreConfig
-  });
-})
-
-export const setTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
-  const { minScore, maxScore } = req.body;
-
-  let taskScoreConfig = await TaskScoreConfig.findOne();
-
-  if (!taskScoreConfig) {
-    taskScoreConfig = await TaskScoreConfig.create({
+      isAutoGenerateReviewForm,
       minScore,
       maxScore,
+      metrics: metricIds
     });
   }
   else {
-    taskScoreConfig.minScore = minScore ?? taskScoreConfig.minScore;
-    taskScoreConfig.maxScore = maxScore ?? taskScoreConfig.maxScore;
-    await taskScoreConfig.save();
+    performanceConfig.reviewFrequency = reviewFrequency ?? performanceConfig.reviewFrequency;
+    performanceConfig.reviewDayOfMonth = reviewDayOfMonth ?? performanceConfig.reviewDayOfMonth;
+    performanceConfig.isAutoGenerateReviewForm = isAutoGenerateReviewForm ?? performanceConfig.isAutoGenerateReviewForm;
+    performanceConfig.minScore = minScore ?? performanceConfig.minScore;
+    performanceConfig.maxScore = maxScore ?? performanceConfig.maxScore;
+    performanceConfig.metrics = metricIds ?? performanceConfig.metrics;
+    await performanceConfig.save();
   }
 
   res.status(200).json({
     success: true,
-    message: "Task Score configuration set successfully",
-    taskScoreConfig
+    message: "Performance configuration set successfully",
+    performanceConfig
   });
 })
 
+export const getAllMetrics = catchAsyncErrors(async (req, res, next) => {
+  const metrics = await Metric.find()
+  if (!metrics || metrics.length === 0) {
+    return next(new ErrorHandler("No metrics found", 404));
+  }
 
+  res.status(200).json({
+    success: true,
+    metrics
+  });
+});
+
+export const getMetricById = catchAsyncErrors(async (req, res, next) => {
+  const { metricId } = req.params;
+
+  const metric = await Metric.findById(metricId);
+  if (!metric) {
+    return next(new ErrorHandler("Metric not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    metric
+  });
+});
+
+export const addMetric = catchAsyncErrors(async (req, res, next) => {
+  const { name, isEnabled } = req.body;
+
+  if (!name) {
+    return next(new ErrorHandler("Metric name is required", 400));
+  }
+
+  const existing = await Metric.findOne({ name });
+  if (existing) {
+    return next(new ErrorHandler("Metric with this name already exists", 400));
 export const getPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
   let config = await PerfMetricsConfig.findOne();
 
@@ -1691,11 +1928,16 @@ export const setPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
     await config.save();
   }
 
-  res.status(200).json({
+  const metric = await Metric.create({ name, isEnabled });
+
+  res.status(201).json({
     success: true,
+    message: "Metric created successfully",
+    metric
     message: "Performance metrics updated",
     perfMetricConfig: config,
   });
+});
 });
 
 
@@ -1703,6 +1945,36 @@ export const setPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
 
 
 
+export const updateMetric = catchAsyncErrors(async (req, res, next) => {
+  const { metricId } = req.params;
+  const { name, isEnabled } = req.body;
+
+  const metric = await Metric.findById(metricId);
+  if (!metric) {
+    return next(new ErrorHandler("Metric not found", 404));
+  }
+
+  metric.name = name ?? metric.name;
+  metric.isEnabled = isEnabled ?? metric.isEnabled;
+
+  await metric.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Metric updated successfully",
+    metric
+  });
+});
+
+export const deleteMetric = catchAsyncErrors(async (req, res, next) => {
+  const { metricId } = req.params;
+
+  const metric = await Metric.findById(metricId);
+  if (!metric) {
+    return next(new ErrorHandler("Metric not found", 404));
+  }
+
+  await metric.deleteOne();
 export const getSinglePayslip = catchAsyncErrors(async (req, res, next) => {
   const payslipId = req.params.id;
 
@@ -2031,10 +2303,12 @@ export const updateSettings = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
+    message: "Metric deleted successfully"
     message: "Settings updated successfully",
     data: settings,
   });
 });
+
 
 
 
