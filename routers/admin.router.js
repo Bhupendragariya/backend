@@ -61,6 +61,11 @@ import {
   getDepartments,
   getEmployees,
   getLeaveTypeNamesEnum,
+  getAllLeaveTypes,
+  createLeaveType,
+  updateLeaveType,
+  updateCarryForwardRules,
+  updateLeaveRules,
  
 } from "../controllers/admin.controller.js";
 import { authenticate, authorize } from "../middlewares/auth.js";
@@ -389,6 +394,56 @@ router.post(
   authorize(["Admin"]),
   setPerfMetricsConfig
 )
+
+
+router.get(
+  "/getAllLeaveTypes",
+  authenticate,
+  authorize(["Admin"]),
+  getAllLeaveTypes
+)
+
+
+router.post(
+  "/createLeaveType",
+  authenticate,
+  authorize(["Admin"]),
+  createLeaveType
+)
+
+
+
+router.put(
+  "/updateLeaveType/:id",
+  authenticate,
+  authorize(["Admin"]),
+  updateLeaveType
+)
+
+router.put(
+  "/leave-types/:leaveTypeId/carry-forward",
+  authenticate,
+  authorize(["Admin"]),
+  updateCarryForwardRules
+)
+
+router.put(
+  "/:leaveTypeId/updateLeaveRules",
+  authenticate,
+  authorize(["Admin"]),
+  updateLeaveRules
+)
+
+
+
+
+
+
+
+
+
+
+
 
 // router.post(
 //   "/reviewPerformance/:empId",

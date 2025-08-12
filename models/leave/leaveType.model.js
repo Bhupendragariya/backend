@@ -30,6 +30,42 @@ const leaveTypeSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+    color: {
+    type: String,
+    default: "bg-gray-400", // default color class
+  },
+  maxCarryForwardDays: { type: Number, default: 0 },  
+
+
+  validityOfCarriedLeaves: {
+    unit: { type: String, enum: ['monthly', 'quarterly', 'annually'], default: 'annually' },
+    value: { type: Number, default: 0 }
+  },
+
+  cycleReset: { type: String, enum: ['monthly', 'quarterly', 'annually'], default: 'annually' }, // 👈 New
+  enabledRequireApproval: { type: Boolean, default: false },
+  color: { type: String, default: 'bg-gray-400' },
+
+
+  leaveRules: {
+  minimumAdvanceNotice: {
+    type: Number,
+    default: 0,
+  },
+  maximumConsecutiveDays: {
+    type: Number,
+    default: 30,
+  },
+  blockWeekends: {
+    type: Boolean,
+    default: false,
+  },
+  blockHolidays: {
+    type: Boolean,
+    default: false,
+  },
+},
+
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

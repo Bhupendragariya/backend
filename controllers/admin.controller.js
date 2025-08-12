@@ -23,6 +23,7 @@ import Performance from "../models/performance/performance.model.js";
 import Attendance from "../models/attendance/attendance.model.js";
 import Payslip from "../models/payslip.model.js";
 import LeaveType from "../models/leave/leaveType.model.js";
+import Settings from "../models/setting.model.js";
 
 //------auth related controllers------//
 
@@ -1663,40 +1664,41 @@ export const setTaskScoreConfig = catchAsyncErrors(async (req, res, next) => {
 
 
 export const getPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
-  let perfMetricConfig = await PerfMetricsConfig.findOne();
+  let config = await PerfMetricsConfig.findOne();
 
-  if (!perfMetricConfig) {
-    perfMetricConfig = await PerfMetricsConfig.create({})
+  if (!config) {
+    config = await PerfMetricsConfig.create({
+      metrics: performance.map((name) => ({ name, enabled: false })),
+    });
   }
 
-  res.status(200).json({
-    success: true,
-    perfMetricConfig
-  });
-})
+  res.status(200).json({ success: true, perfMetricConfig: config });
+});
+
 
 export const setPerfMetricsConfig = catchAsyncErrors(async (req, res, next) => {
-  const { metrics } = req.body; //[{name,fullName,enabled}]
+  const { metrics } = req.body;
 
-  if (!Array.isArray(metrics) || metrics.length === 0) {
-    return next(new ErrorHandler("Performance metrics must be a non-empty array", 400));
+  if (!Array.isArray(metrics)) {
+    return next(new ErrorHandler("Invalid metrics format", 400));
   }
 
-  let perfMetricConfig = await PerfMetricsConfig.findOne();
-
-  if (!perfMetricConfig) {
-    perfMetricConfig = await PerfMetricsConfig.create({ metrics });
+  let config = await PerfMetricsConfig.findOne();
+  if (!config) {
+    config = await PerfMetricsConfig.create({ metrics });
   } else {
-    perfMetricConfig.metrics = metrics;
-    await perfMetricConfig.save();
+    config.metrics = metrics;
+    await config.save();
   }
 
   res.status(200).json({
     success: true,
-    message: "Performance Metric configuration set successfully",
-    perfMetricConfig
+    message: "Performance metrics updated",
+    perfMetricConfig: config,
   });
 });
+
+
 
 
 
@@ -1954,8 +1956,6 @@ export const saveGeneralSettings = catchAsyncErrors(async (req, res, next) => {
 });
 
 
-
-
 function deepMerge(target, source) {
   for (const key in source) {
     if (
@@ -2035,9 +2035,6 @@ export const updateSettings = catchAsyncErrors(async (req, res, next) => {
     data: settings,
   });
 });
-
-
-
 
 
 
@@ -2126,5 +2123,145 @@ export const logoutAdmin = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     message: "You have been logged out securely.",
+  });
+});
+
+
+
+
+
+export const getAllLeaveTypes = catchAsyncErrors(async (req, res, next) => {
+  const leaveTypes = await LeaveType.find();
+  res.status(200).json({
+      success: true,
+      leaveTypes, 
+    });
+});
+
+
+
+
+export const createLeaveType = catchAsyncErrors(async (req, res, next) => {
+  const {
+    name,
+    type,
+    totalLeaveDays,
+    frequency,
+    enabledCarryForward,
+    enabledRequireApproval,
+    color,
+    createdBy
+  } = req.body;
+
+  const leaveType = await LeaveType.create({
+    name,
+    type,
+    totalLeaveDays,
+    frequency,
+    enabledCarryForward,
+    enabledRequireApproval,
+    color,
+    createdBy
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Leave type created successfully",
+    leaveType
+  });
+});
+
+
+export const updateLeaveType = catchAsyncErrors(async (req, res, next) => {
+  let leaveType = await LeaveType.findById(req.params.id);
+
+  if (!leaveType) {
+    return next(new ErrorHandler("Leave type not found", 404));
+  }
+
+  leaveType = await LeaveType.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Leave type updated successfully",
+    leaveType
+  });
+});
+
+
+
+
+
+export const updateCarryForwardRules = catchAsyncErrors(async (req, res, next) => {
+  const { leaveTypeId } = req.params;
+
+  const {
+    enabledCarryForward,
+    maxCarryForwardDays,
+    validityOfCarriedLeaves, // { unit: 'monthly', value: 6 }
+    cycleReset
+  } = req.body;
+
+  const leaveType = await LeaveType.findById(leaveTypeId);
+
+  if (!leaveType) {
+    return res.status(404).json({
+      success: false,
+      message: "Leave type not found"
+    });
+  }
+
+  // Update fields
+  leaveType.enabledCarryForward = enabledCarryForward ?? leaveType.enabledCarryForward;
+  leaveType.maxCarryForwardDays = maxCarryForwardDays ?? leaveType.maxCarryForwardDays;
+  leaveType.validityOfCarriedLeaves = validityOfCarriedLeaves ?? leaveType.validityOfCarriedLeaves;
+  leaveType.cycleReset = cycleReset ?? leaveType.cycleReset;
+
+  await leaveType.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Carry forward rules updated successfully",
+    leaveType
+  });
+});
+
+
+
+export const updateLeaveRules = catchAsyncErrors(async (req, res, next) => {
+  const { leaveTypeId } = req.params;
+
+  const {
+    minimumAdvanceNotice,
+    maximumConsecutiveDays,
+    blockWeekends,
+    blockHolidays,
+  } = req.body;
+
+  const leaveType = await LeaveType.findById(leaveTypeId);
+
+  if (!leaveType) {
+    return res.status(404).json({
+      success: false,
+      message: "Leave type not found",
+    });
+  }
+
+  leaveType.leaveRules = {
+    minimumAdvanceNotice,
+    maximumConsecutiveDays,
+    blockWeekends,
+    blockHolidays,
+  };
+
+  await leaveType.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Leave rules updated successfully",
+    leaveType,
   });
 });

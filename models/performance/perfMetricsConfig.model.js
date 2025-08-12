@@ -12,3 +12,4 @@ const perfMetricsConfigSchema = new mongoose.Schema({
 const PerfMetricsConfig = mongoose.model("PerfMetricsConfig", perfMetricsConfigSchema);
 
 export default PerfMetricsConfig;
+fullName: {type: String}
